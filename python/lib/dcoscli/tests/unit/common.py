@@ -61,7 +61,7 @@ def exec_mock(main, args):
     :rtype: (int, bytes, bytes)
     """
 
-    print('MOCK ARGS: {}'.format(' '.join(args)))
+    print(f"MOCK ARGS: {' '.join(args)}")
 
     with mock_args(args) as (stdout, stderr):
         returncode = main(args)
@@ -69,8 +69,8 @@ def exec_mock(main, args):
     stdout_val = six.b(stdout.getvalue())
     stderr_val = six.b(stderr.getvalue())
 
-    print('STDOUT: {}'.format(stdout_val))
-    print('STDERR: {}'.format(stderr_val))
+    print(f'STDOUT: {stdout_val}')
+    print(f'STDERR: {stderr_val}')
 
     return (returncode, stdout_val, stderr_val)
 

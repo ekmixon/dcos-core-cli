@@ -104,8 +104,7 @@ class DCOSClient(object):
         if self._mesos_master_url:
             return urllib.parse.urljoin(private_url, path)
         else:
-            return urllib.parse.urljoin(self._dcos_url,
-                                        'slave/{}/{}'.format(slave_id, path))
+            return urllib.parse.urljoin(self._dcos_url, f'slave/{slave_id}/{path}')
 
     def get_master_state(self):
         """Get the Mesos master state json object
@@ -227,9 +226,9 @@ class DCOSClient(object):
         :returns: None
         """
 
-        logger.info('Shutting down framework {}'.format(framework_id))
+        logger.info(f'Shutting down framework {framework_id}')
 
-        data = 'frameworkId={}'.format(framework_id)
+        data = f'frameworkId={framework_id}'
 
         url = self.master_url('master/teardown')
 
@@ -332,7 +331,7 @@ class MesosDNSClient(object):
         :returns: {'ip', 'host'} dictionary
         :rtype: dict(str, str)
         """
-        url = self._path('v1/hosts/{}'.format(host))
+        url = self._path(f'v1/hosts/{host}')
         return http.get(url, headers={}).json()
 
     def masters(self):
@@ -395,11 +394,10 @@ class Master(object):
             if len(exact_matches) == 1:
                 return exact_matches[0]
 
-            else:
-                matches = ['\t{0}'.format(s['id']) for s in slaves]
-                raise DCOSException(
-                    "There are multiple agents with that ID. " +
-                    "Please choose one:\n{}".format('\n'.join(matches)))
+            matches = ['\t{0}'.format(s['id']) for s in slaves]
+            raise DCOSException(
+                "There are multiple agents with that ID. " +
+                "Please choose one:\n{}".format('\n'.join(matches)))
 
         else:
             return slaves[0]
@@ -419,8 +417,7 @@ class Master(object):
         tasks = self.tasks(fltr, completed)
 
         if len(tasks) == 0:
-            raise DCOSException(
-                'Cannot find a task with ID containing "{}"'.format(fltr))
+            raise DCOSException(f'Cannot find a task with ID containing "{fltr}"')
 
         elif len(tasks) > 1:
             msg = [("There are multiple tasks with ID matching [{}]. " +
@@ -440,10 +437,14 @@ class Master(object):
         :rtype: Framework
         """
 
-        for f in self._framework_dicts(True, True):
-            if f['id'] == framework_id:
-                return self._framework_obj(f)
-        return None
+        return next(
+            (
+                self._framework_obj(f)
+                for f in self._framework_dicts(True, True)
+                if f['id'] == framework_id
+            ),
+            None,
+        )
 
     def slaves(self, fltr=""):
         """Returns those slaves that have `fltr` in their 'id'
@@ -486,8 +487,8 @@ class Master(object):
                         continue
 
                 if fltr is None or \
-                        fltr in task['id'] or \
-                        fnmatch.fnmatchcase(task['id'], fltr):
+                            fltr in task['id'] or \
+                            fnmatch.fnmatchcase(task['id'], fltr):
                     task = self._framework_obj(framework).task(task['id'])
                     tasks.append(task)
 
@@ -517,19 +518,23 @@ class Master(object):
                 .format(task_id, candidates))
 
         def _get_container_status(task):
-            if 'statuses' in task:
-                if len(task['statuses']) > 0:
-                    if 'container_status' in task['statuses'][0]:
-                        return task['statuses'][0]['container_status']
+            if (
+                'statuses' in task
+                and len(task['statuses']) > 0
+                and 'container_status' in task['statuses'][0]
+            ):
+                return task['statuses'][0]['container_status']
 
             raise DCOSException(
                 "Unable to obtain container status for task '{}'"
                 .format(task['id']))
 
         def _get_container_id(container_status):
-            if 'container_id' in container_status:
-                if 'value' in container_status['container_id']:
-                    return container_status['container_id']
+            if (
+                'container_id' in container_status
+                and 'value' in container_status['container_id']
+            ):
+                return container_status['container_id']
 
             raise DCOSException(
                 "No container found for the specified task."
@@ -613,9 +618,7 @@ class Master(object):
         """
 
         if completed:
-            for framework in self.state()['completed_frameworks']:
-                yield framework
-
+            yield from self.state()['completed_frameworks']
         for framework in self.state()['frameworks']:
             active_state = framework['active']
             if (active_state and active) or (not active_state and inactive):
@@ -659,7 +662,7 @@ class Slave(object):
         """
 
         parsed_pid = parse_pid(self['pid'])
-        return 'http://{}:{}'.format(parsed_pid[1], parsed_pid[2])
+        return f'http://{parsed_pid[1]}:{parsed_pid[2]}'
 
     def _framework_dicts(self):
         """Returns the framework dictionaries from the state dict
@@ -728,10 +731,14 @@ class Framework(object):
         :rtype: Task
         """
 
-        for task in _merge(self._framework, ['tasks', 'completed_tasks']):
-            if task['id'] == task_id:
-                return self._task_obj(task)
-        return None
+        return next(
+            (
+                self._task_obj(task)
+                for task in _merge(self._framework, ['tasks', 'completed_tasks'])
+                if task['id'] == task_id
+            ),
+            None,
+        )
 
     def _task_obj(self, task):
         """Returns the Task object corresponding to the provided `task`
@@ -779,8 +786,7 @@ class Task(object):
         if 'slave_id' not in self._task or not master:
             return
 
-        fd = self.fault_domain()
-        if fd:
+        if fd := self.fault_domain():
             self._task.update(fd)
 
     def dict(self):
@@ -848,10 +854,7 @@ class Task(object):
         :returns: fault domain structure
         :rtype: dict | None
         """
-        if self.slave() is None:
-            return None
-        else:
-            return self.slave().fault_domain()
+        return None if self.slave() is None else self.slave().fault_domain()
 
     def __getitem__(self, name):
         """Support the task[attr] syntax
@@ -946,8 +949,7 @@ class MesosFile(object):
         elif whence == os.SEEK_END:
             self._cursor = self.size() + offset
         else:
-            raise ValueError(
-                "Unexpected value for `whence`: {}".format(whence))
+            raise ValueError(f"Unexpected value for `whence`: {whence}")
 
     def tell(self):
         """ The current cursor position.
@@ -984,19 +986,14 @@ class MesosFile(object):
         :rtype: str
         """
 
-        if self._task:
-            directory = self._task.directory().rstrip('/')
-            executor = self._task.executor()
-            # executor.type is currently used only by pods. All tasks in a pod
-            # share an executor, so if this is a pod, get the task logs instead
-            # of the executor logs
-            if executor.get('type') == "DEFAULT":
-                task_id = self._task.dict().get('id')
-                return directory + '/tasks/{}/'.format(task_id) + self._path
-            else:
-                return directory + '/' + self._path
-        else:
+        if not self._task:
             return self._path
+        directory = self._task.directory().rstrip('/')
+        executor = self._task.executor()
+        if executor.get('type') != "DEFAULT":
+            return f'{directory}/{self._path}'
+        task_id = self._task.dict().get('id')
+        return directory + f'/tasks/{task_id}/' + self._path
 
     def _params(self, length, offset=None):
         """GET parameters to send to files/read.json.  See the MesosFile
@@ -1106,12 +1103,14 @@ class TaskIO(object):
         # "MESOS". Having a type of "MESOS" implies that it was launched by the
         # UCR -- all other types imply it was not.
         task_obj = master.task(task_id)
-        if "container" in task_obj.dict():
-            if "type" in task_obj.dict()["container"]:
-                if task_obj.dict()["container"]["type"] != "MESOS":
-                    raise DCOSException(
-                        "This command is only supported for tasks"
-                        " launched by the Universal Container Runtime (UCR).")
+        if (
+            "container" in task_obj.dict()
+            and "type" in task_obj.dict()["container"]
+            and task_obj.dict()["container"]["type"] != "MESOS"
+        ):
+            raise DCOSException(
+                "This command is only supported for tasks"
+                " launched by the Universal Container Runtime (UCR).")
 
         # Get the URL to the agent running the task.
         if client._mesos_master_url:
@@ -1194,15 +1193,8 @@ class TaskIO(object):
 
         self._run()
 
-        if not self.exit_sequence_detected:
-            # We are only able to get the 'exit_status' of tasks launched via
-            # the default executor (i.e. as pods rather than via the command
-            # executor). In the future, mesos will deprecate the command
-            # executor in favor of the default executor, so this check will
-            # be able to go away. In the meantime, we will always return '0'
-            # for tasks launched via the command executor.
-            if "parent" in self.container_id:
-                return self._wait()
+        if not self.exit_sequence_detected and "parent" in self.container_id:
+            return self._wait()
 
         return 0
 
@@ -1580,7 +1572,7 @@ class TaskIO(object):
                 data=_initial_input_streamer(),
                 **req_extra_args)
         except DCOSHTTPException as e:
-            if not e.response.status_code == 500:
+            if e.response.status_code != 500:
                 raise e
 
         # If we succeeded with that connection, unblock process_output_stream()
@@ -1724,11 +1716,7 @@ class TaskIO(object):
         """
 
         # Determine the size of our terminal, and create the message to be sent
-        if dimensions:
-            rows, columns = dimensions
-        else:
-            rows, columns = os.popen('stty size', 'r').read().split()
-
+        rows, columns = dimensions or os.popen('stty size', 'r').read().split()
         message = {
             'type': 'ATTACH_CONTAINER_INPUT',
             'attach_container_input': {

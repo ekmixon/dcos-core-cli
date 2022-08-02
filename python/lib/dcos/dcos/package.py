@@ -28,16 +28,14 @@ def uninstall(pkg, package_name, remove_all, app_id, cli, app):
 
     installed = installed_packages(
         pkg, None, package_name, cli_only=False)
-    installed_pkg = next(iter(installed), None)
-
-    if installed_pkg:
+    if installed_pkg := next(iter(installed), None):
         installed_cli = installed_pkg.get("command")
         installed_app = installed_pkg.get("apps") or []
     else:
-        msg = 'Package [{}]'.format(package_name)
+        msg = f'Package [{package_name}]'
         if app_id is not None:
             app_id = util.normalize_marathon_id_path(app_id)
-            msg += " with id [{}]".format(app_id)
+            msg += f" with id [{app_id}]"
         msg += " is not installed"
         raise DCOSException(msg)
 
@@ -50,15 +48,17 @@ def uninstall(pkg, package_name, remove_all, app_id, cli, app):
         # supplied package (with different semantics depending on the values of
         # `remove_all` and `app_id` as described in the docstring for this
         # function).
-        if app and installed_app:
-            if not pkg.uninstall_app(package_name, remove_all, app_id):
-                raise DCOSException("Couldn't uninstall package")
+        if (
+            app
+            and installed_app
+            and not pkg.uninstall_app(package_name, remove_all, app_id)
+        ):
+            raise DCOSException("Couldn't uninstall package")
 
         # This forces an unconditional uninstall of the CLI associated with the
         # supplied package.
-        if cli and installed_cli:
-            if not subcommand.uninstall(package_name):
-                raise DCOSException("Couldn't uninstall subcommand")
+        if cli and installed_cli and not subcommand.uninstall(package_name):
+            raise DCOSException("Couldn't uninstall subcommand")
 
         return
 
@@ -70,13 +70,17 @@ def uninstall(pkg, package_name, remove_all, app_id, cli, app):
     # being uninstalled is the last one remaining on the system.  Otherwise, we
     # leave the CLI in place so other instances of the app can continue to
     # interact with it.
-    if installed_app:
-        if not pkg.uninstall_app(package_name, remove_all, app_id):
-            raise DCOSException("Couldn't uninstall package")
+    if installed_app and not pkg.uninstall_app(
+        package_name, remove_all, app_id
+    ):
+        raise DCOSException("Couldn't uninstall package")
 
-    if installed_cli and (remove_all or len(installed_app) <= 1):
-        if not subcommand.uninstall(package_name):
-            raise DCOSException("Couldn't uninstall subcommand")
+    if (
+        installed_cli
+        and (remove_all or len(installed_app) <= 1)
+        and not subcommand.uninstall(package_name)
+    ):
+        raise DCOSException("Couldn't uninstall subcommand")
 
 
 def uninstall_subcommand(distribution_name):
@@ -129,10 +133,7 @@ def installed_packages(package_manager, app_id, package_name, cli_only):
     :rtype: [dict]
     """
 
-    apps = []
-    if not cli_only:
-        apps = package_manager.installed_apps(package_name, app_id)
-
+    apps = [] if cli_only else package_manager.installed_apps(package_name, app_id)
     subcommands = []
     for subcmd in installed_subcommands():
         if _matches_package_name(package_name, subcmd.name):
@@ -207,8 +208,7 @@ def get_package_manager():
     cosmos_manager = packagemanager.PackageManager(cosmos_url)
     if cosmos_manager.enabled():
         return cosmos_manager
-    else:
-        msg = ("This version of the DC/OS CLI is not supported for your "
-               "cluster. Please downgrade the CLI to an older version: "
-               "https://dcos.io/docs/usage/cli/update/#downgrade")
-        raise DCOSException(msg)
+    msg = ("This version of the DC/OS CLI is not supported for your "
+           "cluster. Please downgrade the CLI to an older version: "
+           "https://dcos.io/docs/usage/cli/update/#downgrade")
+    raise DCOSException(msg)

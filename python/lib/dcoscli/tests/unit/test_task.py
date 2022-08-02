@@ -314,8 +314,7 @@ def test_task_fault_domain():
         }
     }
 
-    state = {'prop1': 'value1'}
-    state.update(fd)
+    state = {'prop1': 'value1'} | fd
     slave = mesos.Slave(state, None, None)
     assert slave.fault_domain() == fd
 

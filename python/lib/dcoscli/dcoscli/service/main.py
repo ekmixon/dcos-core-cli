@@ -28,7 +28,9 @@ def _main(argv):
     args = docopt.docopt(
         default_doc("service"),
         argv=argv,
-        version="dcos-service version {}".format(dcoscli.version))
+        version=f"dcos-service version {dcoscli.version}",
+    )
+
 
     return cmds.execute(_cmds(), args)
 
@@ -95,8 +97,7 @@ def _service(inactive, completed, is_json):
         emitter.publish([service.dict() for service in services])
     else:
         table = tables.service_table(services)
-        output = six.text_type(table)
-        if output:
+        if output := six.text_type(table):
             emitter.publish(output)
 
     return 0
@@ -179,7 +180,7 @@ def _log_service(follow, lines, service, file_):
     # if journald logging is disabled, read from files API.
     if log.dcos_log_enabled() or log.dcos_log_enabled(version=2):
         if 'id' not in task:
-            raise DCOSException('Missing `id` in task. {}'.format(task))
+            raise DCOSException(f'Missing `id` in task. {task}')
 
         task_id = task['id']
         task_main._log(True, follow, False, lines, task_id, file_)
@@ -246,13 +247,14 @@ def _get_service_app(marathon_client, service_name):
 
     if len(apps) > 1:
         raise DCOSException(
-            'Multiple marathon apps found for service name [{}]: {}'.format(
-                service_name,
-                ', '.join('[{}]'.format(app['id']) for app in apps)))
+            f"""Multiple marathon apps found for service name [{service_name}]: {', '.join(f"[{app['id']}]" for app in apps)}"""
+        )
+
     elif len(apps) == 0:
         raise DCOSException(
-            'No marathon apps found for service name [{}]'.format(
-                service_name))
+            f'No marathon apps found for service name [{service_name}]'
+        )
+
     else:
         return apps[0]
 
@@ -277,7 +279,7 @@ def _log_marathon(follow, lines, ssh_config_file, user):
     if follow:
         journalctl_args += '-f '
     if lines:
-        journalctl_args += '-n {} '.format(lines)
+        journalctl_args += f'-n {lines} '
 
     leader_ip = marathon.create_client().get_leader().split(':')[0]
     service = 'dcos-marathon'
@@ -292,6 +294,6 @@ def _log_marathon(follow, lines, ssh_config_file, user):
         journalctl_args,
         service)
 
-    emitter.publish(DefaultError("Running `{}`".format(cmd)))
+    emitter.publish(DefaultError(f"Running `{cmd}`"))
 
     return subprocess.Subproc().call(cmd, shell=True)

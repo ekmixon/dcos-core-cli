@@ -243,14 +243,14 @@ def test_node_ssh_leader():
                     reason='No pseudo terminal on windows')
 def test_node_ssh_slave():
     slave_id = mesos.DCOSClient().get_state_summary()['slaves'][0]['id']
-    _node_ssh(['--mesos-id={}'.format(slave_id), '--master-proxy'])
+    _node_ssh([f'--mesos-id={slave_id}', '--master-proxy'])
 
 
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason='No pseudo terminal on windows')
 def test_node_ssh_slave_with_private_ip():
     slave_ip = mesos.DCOSClient().get_state_summary()['slaves'][0]['hostname']
-    _node_ssh(['--private-ip={}'.format(slave_ip), '--master-proxy'])
+    _node_ssh([f'--private-ip={slave_ip}', '--master-proxy'])
 
 
 @pytest.mark.skipif(sys.platform == 'win32',
@@ -311,17 +311,33 @@ def test_node_ssh_with_command():
                     reason='No pseudo terminal on windows')
 def test_node_ssh_slave_with_command():
     slave = mesos.DCOSClient().get_state_summary()['slaves'][0]
-    _node_ssh(['--mesos-id={}'.format(slave['id']), '--master-proxy',
-               '/opt/mesosphere/bin/detect_ip'], 0, slave['hostname'])
+    _node_ssh(
+        [
+            f"--mesos-id={slave['id']}",
+            '--master-proxy',
+            '/opt/mesosphere/bin/detect_ip',
+        ],
+        0,
+        slave['hostname'],
+    )
 
 
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason='No pseudo terminal on windows')
 def test_node_ssh_slave_with_separated_command():
     slave = mesos.DCOSClient().get_state_summary()['slaves'][0]
-    _node_ssh(['--mesos-id={}'.format(slave['id']), '--master-proxy', '--user',
-               os.environ.get('CLI_TEST_SSH_USER'), '--',
-               '/opt/mesosphere/bin/detect_ip'], 0, slave['hostname'])
+    _node_ssh(
+        [
+            f"--mesos-id={slave['id']}",
+            '--master-proxy',
+            '--user',
+            os.environ.get('CLI_TEST_SSH_USER'),
+            '--',
+            '/opt/mesosphere/bin/detect_ip',
+        ],
+        0,
+        slave['hostname'],
+    )
 
 
 @pytest.mark.skipif(True, reason='The agent should be recommissioned,'
@@ -336,7 +352,7 @@ def test_node_decommission():
     returncode, stdout, stderr = exec_command([
         'dcos', 'node', 'decommission', agent_id])
 
-    exp_stdout = "Agent {} has been marked as gone.\n".format(agent_id)
+    exp_stdout = f"Agent {agent_id} has been marked as gone.\n"
 
     assert returncode == 0
     assert stdout.decode('utf-8') == exp_stdout
@@ -358,8 +374,9 @@ def test_node_decommission_unexisting_agent():
 def _node_ssh_output(args):
     cli_test_ssh_key_path = os.environ['CLI_TEST_SSH_KEY_PATH']
 
-    if os.environ.get('CLI_TEST_SSH_USER') and \
-            not any("--user" in a for a in args):
+    if os.environ.get('CLI_TEST_SSH_USER') and all(
+        "--user" not in a for a in args
+    ):
         args.extend(['--user', os.environ.get('CLI_TEST_SSH_USER')])
 
     if os.environ.get('CLI_TEST_MASTER_PROXY') and \

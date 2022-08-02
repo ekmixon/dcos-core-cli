@@ -63,13 +63,12 @@ def find_parser(key, schema):
     """
 
     key_schema = schema['properties'].get(key)
-    if key_schema is None:
-        keys = '\n'.join(schema['properties'].keys())
-        raise DCOSException(
-            'Property {!r} is invalid - '
-            'possible properties are: \n{}'.format(key, keys))
-    else:
+    if key_schema is not None:
         return ValueTypeParser(key_schema)
+    keys = '\n'.join(schema['properties'].keys())
+    raise DCOSException(
+        'Property {!r} is invalid - '
+        'possible properties are: \n{}'.format(key, keys))
 
 
 class ValueTypeParser(object):
@@ -93,13 +92,12 @@ class ValueTypeParser(object):
         value = clean_value(value)
 
         if self.schema['type'] == 'string':
-            if self.schema.get('format') == 'uri':
-                try:
-                    return _parse_url(value)
-                except DCOSException:
-                    return "https://" + value
-            else:
+            if self.schema.get('format') != 'uri':
                 return _parse_string(value)
+            try:
+                return _parse_url(value)
+            except DCOSException:
+                return f"https://{value}"
         elif self.schema['type'] == 'object':
             return _parse_object(value)
         elif self.schema['type'] == 'number':
@@ -140,7 +138,7 @@ def _find_type(value):
     """
     to_try = [_parse_integer, _parse_number, _parse_boolean, _parse_array,
               _parse_object, _parse_url, _parse_string]
-    while len(to_try) > 0:
+    while to_try:
         try:
             return to_try.pop(0)(value)
         except DCOSException:

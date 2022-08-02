@@ -32,12 +32,7 @@ def execute(cmds, args):
     """
 
     for hierarchy, arg_keys, function in cmds:
-        # Let's find if the function matches the command
-        match = True
-        for positional in hierarchy:
-            if not args[positional]:
-                match = False
-
+        match = all(args[positional] for positional in hierarchy)
         if match:
             params = [args[name] for name in arg_keys]
             return function(*params)

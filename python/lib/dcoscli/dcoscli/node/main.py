@@ -39,7 +39,9 @@ def _main(argv):
     args = docopt.docopt(
         default_doc("node"),
         argv=argv,
-        version="dcos-node version {}".format(dcoscli.version))
+        version=f"dcos-node version {dcoscli.version}",
+    )
+
 
     return cmds.execute(_cmds(), args)
 
@@ -190,8 +192,9 @@ def _get_bundle_list():
             if ('file_name' not in bundle_file_obj
                     or 'file_size' not in bundle_file_obj):
                 raise DCOSException(
-                    'Request to get a list of available diagnostic bundles '
-                    'returned unexpected response {}'.format(bundle_file_obj))
+                    f'Request to get a list of available diagnostic bundles returned unexpected response {bundle_file_obj}'
+                )
+
 
             available_bundles.append(
                 (os.path.basename(bundle_file_obj['file_name']),
@@ -226,8 +229,7 @@ def _bundle_manage(list_bundles, status, cancel, json):
         emitter.publish("Available diagnostic bundles:")
         for available_bundle in sorted(available_bundles,
                                        key=lambda t: t[0]):
-            emitter.publish('{} {}'.format(available_bundle[0],
-                                           sizeof_fmt(available_bundle[1])))
+            emitter.publish(f'{available_bundle[0]} {sizeof_fmt(available_bundle[1])}')
         return 0
     elif status:
         url = urllib.parse.urljoin(DIAGNOSTICS_BASE_URL, 'status/all')
@@ -239,7 +241,7 @@ def _bundle_manage(list_bundles, status, cancel, json):
         for host, props in sorted(bundle_response.items()):
             emitter.publish(host)
             for key, value in sorted(props.items()):
-                emitter.publish('  {}: {}'.format(key, value))
+                emitter.publish(f'  {key}: {value}')
             emitter.publish('\n')
         return 0
     elif cancel:
@@ -251,8 +253,9 @@ def _bundle_manage(list_bundles, status, cancel, json):
 
         if 'status' not in bundle_response:
             raise DCOSException(
-                'Request to cancel a diagnostics job {} returned '
-                'an unexpected response {}'.format(url, bundle_response))
+                f'Request to cancel a diagnostics job {url} returned an unexpected response {bundle_response}'
+            )
+
 
         emitter.publish(bundle_response['status'])
         return 0
@@ -281,17 +284,12 @@ def _do_request(url, method, timeout=None, stream=False, **kwargs):
     def _is_success(status_code):
         # consider 400 and 503 to be successful status codes.
         # API will return the error message.
-        if status_code in [200, 400, 503]:
-            return True
-        return False
+        return status_code in [200, 400, 503]
 
     # if timeout is not passed, try to read `core.timeout`
     # if `core.timeout` is not set, default to 3 min.
     if timeout is None:
-        timeout = config.get_config_val('core.timeout')
-        if not timeout:
-            timeout = 180
-
+        timeout = config.get_config_val('core.timeout') or 180
     base_url = config.get_config_val("core.dcos_url")
     if not base_url:
         raise config.missing_config_exception(['core.dcos_url'])
@@ -304,7 +302,7 @@ def _do_request(url, method, timeout=None, stream=False, **kwargs):
         http_response = http.post(url, is_success=_is_success, timeout=timeout,
                                   stream=stream, **kwargs)
     else:
-        raise DCOSException('Unsupported HTTP method: ' + method)
+        raise DCOSException(f'Unsupported HTTP method: {method}')
     return http_response
 
 
@@ -338,8 +336,7 @@ def _read_http_response_body(http_response):
     try:
         for chunk in http_response.iter_content(1024):
             data += chunk
-        bundle_response = util.load_jsons(data.decode('utf-8'))
-        return bundle_response
+        return util.load_jsons(data.decode('utf-8'))
     except DCOSException:
         raise
 
@@ -363,15 +360,16 @@ def _bundle_download(bundle, location):
         # where first element is file name and second is its size.
         if len(available_bundle) != 2:
             raise DCOSException(
-                'Request to get a list of diagnostic bundles returned an '
-                'unexpected response: {}'.format(available_bundle))
+                f'Request to get a list of diagnostic bundles returned an unexpected response: {available_bundle}'
+            )
+
 
         # available_bundle[0] is a file name
         # available_bundle[1] is a file size
         if available_bundle[0] == bundle:
             bundle_size = available_bundle[1]
 
-    url = urllib.parse.urljoin(DIAGNOSTICS_BASE_URL, 'serve/' + bundle)
+    url = urllib.parse.urljoin(DIAGNOSTICS_BASE_URL, f'serve/{bundle}')
     bundle_location = os.path.join(os.getcwd(), bundle)
     if location:
         if os.path.isdir(location):
@@ -392,7 +390,7 @@ def _bundle_download(bundle, location):
                 f.write(chunk)
     except Exception as e:
         raise DCOSException(e)
-    emitter.publish('Diagnostics bundle downloaded to ' + bundle_location)
+    emitter.publish(f'Diagnostics bundle downloaded to {bundle_location}')
     return 0
 
 
@@ -407,14 +405,14 @@ def _bundle_delete(bundle):
     """
 
     _check_3dt_version()
-    url = urllib.parse.urljoin(
-        DIAGNOSTICS_BASE_URL, 'delete/' + bundle)
+    url = urllib.parse.urljoin(DIAGNOSTICS_BASE_URL, f'delete/{bundle}')
     response = _do_diagnostics_request(url, 'POST')
 
     if 'status' not in response:
         raise DCOSException(
-            'Request to delete the diagnostics bundle {} returned an '
-            'unexpected response {}'.format(url, response))
+            f'Request to delete the diagnostics bundle {url} returned an unexpected response {response}'
+        )
+
 
     emitter.publish(response['status'])
     return 0
@@ -439,12 +437,14 @@ def _bundle_create(nodes):
     if ('status' not in response or 'extra' not in response
             or 'bundle_name' not in response['extra']):
         raise DCOSException(
-            'Request to create a diagnostics bundle {} returned an '
-            'unexpected response {}'.format(url, response))
+            f'Request to create a diagnostics bundle {url} returned an unexpected response {response}'
+        )
 
-    emitter.publish('\n{}, available bundle: {}'.format(
-        response['status'],
-        response['extra']['bundle_name']))
+
+    emitter.publish(
+        f"\n{response['status']}, available bundle: {response['extra']['bundle_name']}"
+    )
+
     return 0
 
 
@@ -465,8 +465,7 @@ def _dns_lookup(dns_name, json_):
         emitter.publish(ips)
     else:
         table = tables.dns_table(ips)
-        output = six.text_type(table)
-        if output:
+        if output := six.text_type(table):
             emitter.publish(output)
 
     return 0
@@ -529,8 +528,7 @@ def _list(json_, extra_field_names):
                         'Field "%s" is invalid.' % field_name))
                     return
         table = tables.node_table(nodes, extra_field_names)
-        output = six.text_type(table)
-        if output:
+        if output := six.text_type(table):
             emitter.publish(output)
         else:
             emitter.publish(errors.DefaultError('No agents found.'))
@@ -600,7 +598,7 @@ def _metrics(summary, mesos_id, json_):
     :rtype: int
     """
 
-    endpoint = '/system/v1/agent/{}/metrics/v0/node'.format(mesos_id)
+    endpoint = f'/system/v1/agent/{mesos_id}/metrics/v0/node'
 
     dcos_url = config.get_config_val('core.dcos_url').rstrip('/')
     if not dcos_url:
@@ -625,19 +623,21 @@ def _get_slave_ip(slave):
     summary = mesos.DCOSClient().get_state_summary()
     if 'slaves' not in summary:
         raise DCOSException(
-            'Invalid summary report. '
-            'Missing field `slaves`. {}'.format(summary))
+            f'Invalid summary report. Missing field `slaves`. {summary}'
+        )
+
 
     for s in summary['slaves']:
         if 'hostname' not in s or 'id' not in s:
             raise DCOSException(
-                'Invalid summary report. Missing field `id` '
-                'or `hostname`. {}'.format(summary))
+                f'Invalid summary report. Missing field `id` or `hostname`. {summary}'
+            )
+
 
         if s['id'] == slave:
             return s['hostname']
 
-    raise DCOSException('Agent `{}` not found'.format(slave))
+    raise DCOSException(f'Agent `{slave}` not found')
 
 
 def _list_components(leader, slave, use_json):
@@ -657,19 +657,19 @@ def _list_components(leader, slave, use_json):
         raise DCOSException(
             'Unable to use leader and mesos id at the same time')
 
-    slave_ip = _get_slave_ip(slave)
-    if slave_ip:
+    if slave_ip := _get_slave_ip(slave):
         print_components(slave_ip, use_json)
         return
 
     leaders = mesos.MesosDNSClient().hosts('leader.mesos')
     if len(leaders) != 1:
-        raise DCOSException('Expecting one leader. Got {}'.format(leaders))
+        raise DCOSException(f'Expecting one leader. Got {leaders}')
 
     if 'ip' not in leaders[0]:
         raise DCOSException(
-            'Invalid leader response, missing field `ip`. '
-            'Got {}'.format(leaders[0]))
+            f'Invalid leader response, missing field `ip`. Got {leaders[0]}'
+        )
+
 
     print_components(leaders[0]['ip'], use_json)
 
@@ -688,11 +688,10 @@ def print_components(ip, use_json):
     if not dcos_url:
         raise config.missing_config_exception(['core.dcos_url'])
 
-    url = dcos_url + '/system/health/v1/nodes/{}/units'.format(ip)
+    url = dcos_url + f'/system/health/v1/nodes/{ip}/units'
     response = http.get(url).json()
     if 'units' not in response:
-        raise DCOSException(
-            'Invalid response. Missing field `units`. {}'.format(response))
+        raise DCOSException(f'Invalid response. Missing field `units`. {response}')
 
     if use_json:
         emitter.publish(response['units'])
@@ -717,11 +716,14 @@ def _get_unit_type(unit_name):
     unit_types = ['service', 'socket', 'device', 'mount', 'automount',
                   'swap', 'target', 'path', 'timer', 'slice', 'scope']
 
-    for unit_type in unit_types:
-        if unit_name.endswith('.{}'.format(unit_type)):
-            return unit_name
-
-    return '{}.service'.format(unit_name)
+    return next(
+        (
+            unit_name
+            for unit_type in unit_types
+            if unit_name.endswith(f'.{unit_type}')
+        ),
+        f'{unit_name}.service',
+    )
 
 
 def _build_leader_url(component, version=1):
@@ -736,7 +738,7 @@ def _build_leader_url(component, version=1):
     """
 
     if version < 1 or version > 2:
-        raise DCOSException('valid API versions: 1, 2.Used {}'.format(version))
+        raise DCOSException(f'valid API versions: 1, 2.Used {version}')
 
     leaders_map = {
         'dcos-marathon.service': 'marathon',
@@ -750,15 +752,14 @@ def _build_leader_url(component, version=1):
         component_name = _get_unit_type(component)
         leader_prefix = leaders_map.get(component_name)
         if not leader_prefix:
-            raise DCOSException('Component {} does not have a leader'.format(
-                component))
-    endpoint = '/leader/{}/logs/v{}/'.format(leader_prefix, version)
+            raise DCOSException(f'Component {component} does not have a leader')
+    endpoint = f'/leader/{leader_prefix}/logs/v{version}/'
     if version == 1:
         return endpoint
 
     if component_name:
-        return endpoint + 'component/{}'.format(component_name)
-    return endpoint + 'component'
+        return endpoint + f'component/{component_name}'
+    return f'{endpoint}component'
 
 
 def _dcos_log_v2(follow, lines, leader, slave, component, filters):
@@ -782,18 +783,20 @@ def _dcos_log_v2(follow, lines, leader, slave, component, filters):
     for f in filters:
         key_value = f.split(':')
         if len(key_value) != 2:
-            raise DCOSException('Invalid filter parameter {}. '
-                                'Must be --filter=key:value'.format(f))
-        filter_query += '&filter={}'.format(f)
+            raise DCOSException(
+                f'Invalid filter parameter {f}. Must be --filter=key:value'
+            )
+
+        filter_query += f'&filter={f}'
 
     endpoint = '/system/v1'
     if leader:
         endpoint += _build_leader_url(component, version=2)
     elif slave:
-        endpoint += '/agent/{}/logs/v2/component'.format(slave)
+        endpoint += f'/agent/{slave}/logs/v2/component'
         if component:
             component_with_type = _get_unit_type(component)
-            endpoint += '/{}'.format(component_with_type)
+            endpoint += f'/{component_with_type}'
 
     dcos_url = config.get_config_val('core.dcos_url').rstrip("/")
     if not dcos_url:
@@ -803,11 +806,9 @@ def _dcos_log_v2(follow, lines, leader, slave, component, filters):
     if lines > 0:
         lines *= -1
 
-    url = dcos_url + endpoint + '?skip={}'.format(lines) + filter_query
+    url = dcos_url + endpoint + f'?skip={lines}' + filter_query
 
-    if follow:
-        return log.follow_logs(url)
-    return log.print_logs_range(url)
+    return log.follow_logs(url) if follow else log.print_logs_range(url)
 
 
 def _dcos_log(follow, lines, leader, slave, component, filters):
@@ -829,35 +830,31 @@ def _dcos_log(follow, lines, leader, slave, component, filters):
 
     filter_query = ''
     if component:
-        filters.append('_SYSTEMD_UNIT:{}'.format(_get_unit_type(component)))
+        filters.append(f'_SYSTEMD_UNIT:{_get_unit_type(component)}')
 
     for f in filters:
         key_value = f.split(':')
         if len(key_value) != 2:
-            raise SystemExit('Invalid filter parameter {}. '
-                             'Must be --filter=key:value'.format(f))
-        filter_query += '&filter={}'.format(f)
+            raise SystemExit(f'Invalid filter parameter {f}. Must be --filter=key:value')
+        filter_query += f'&filter={f}'
 
     endpoint = '/system/v1'
     if leader:
         endpoint += _build_leader_url(component)
     elif slave:
-        endpoint += '/agent/{}/logs/v1/'.format(slave)
+        endpoint += f'/agent/{slave}/logs/v1/'
 
-    endpoint_type = 'range'
-    if follow:
-        endpoint_type = 'stream'
-
+    endpoint_type = 'stream' if follow else 'range'
     dcos_url = config.get_config_val('core.dcos_url').rstrip("/")
     if not dcos_url:
         raise config.missing_config_exception(['core.dcos_url'])
 
-    url = (dcos_url + endpoint + endpoint_type +
-           '/?skip_prev={}'.format(lines) + filter_query)
+    url = (
+        dcos_url + endpoint + endpoint_type + f'/?skip_prev={lines}'
+    ) + filter_query
 
-    if follow:
-        return log.follow_logs(url)
-    return log.print_logs_range(url)
+
+    return log.follow_logs(url) if follow else log.print_logs_range(url)
 
 
 def _mesos_files(leader, slave_id):
@@ -915,13 +912,13 @@ def _ssh(leader, slave, option, config_file, user, master_proxy, proxy_ip,
         host = private_ip
     else:
         summary = dcos_client.get_state_summary()
-        slave_obj = next((slave_ for slave_ in summary['slaves']
-                          if slave_['id'] == slave),
-                         None)
-        if slave_obj:
+        if slave_obj := next(
+            (slave_ for slave_ in summary['slaves'] if slave_['id'] == slave),
+            None,
+        ):
             host = mesos.parse_pid(slave_obj['pid'])[1]
         else:
-            raise DCOSException('No slave found with ID [{}]'.format(slave))
+            raise DCOSException(f'No slave found with ID [{slave}]')
 
     if command is None:
         command = ''
@@ -930,7 +927,7 @@ def _ssh(leader, slave, option, config_file, user, master_proxy, proxy_ip,
         config_file, option, user, proxy_ip, master_proxy)
     cmd = "ssh {0} {1} -- {2}".format(ssh_options, host, command)
 
-    emitter.publish(DefaultError("Running `{}`".format(cmd)))
+    emitter.publish(DefaultError(f"Running `{cmd}`"))
     if not master_proxy and not proxy_ip:
         emitter.publish(
             DefaultError("If you are running this command from a separate "
@@ -945,8 +942,9 @@ def _decommission(mesos_id):
         mesos.DCOSClient().mark_agent_gone(mesos_id)
     except errors.DCOSException as e:
         emitter.publish(
-            DefaultError("Couldn't mark agent {} as gone :\n\n{}".format(
-                mesos_id, e)))
+            DefaultError(f"Couldn't mark agent {mesos_id} as gone :\n\n{e}")
+        )
+
         return 1
 
-    emitter.publish("Agent {} has been marked as gone.".format(mesos_id))
+    emitter.publish(f"Agent {mesos_id} has been marked as gone.")

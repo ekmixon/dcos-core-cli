@@ -35,18 +35,20 @@ def _get_auth_scheme(response):
 
     if 'WWW-Authenticate' in response.headers:
         auths = response.headers['WWW-Authenticate'].split(',')
-        scheme = next((auth_type.rstrip().lower() for auth_type in auths
-                       if auth_type.rstrip().lower().startswith("acsjwt") or
-                       auth_type.rstrip().lower().startswith("oauthjwt")),
-                      None)
-        if scheme:
+        if scheme := next(
+            (
+                auth_type.rstrip().lower()
+                for auth_type in auths
+                if auth_type.rstrip().lower().startswith("acsjwt")
+                or auth_type.rstrip().lower().startswith("oauthjwt")
+            ),
+            None,
+        ):
             scheme_info = scheme.split("=")
-            auth_scheme = scheme_info[0].split(" ")[0].lower()
-            return auth_scheme
+            return scheme_info[0].split(" ")[0].lower()
         else:
-            msg = ("Server responded with an HTTP 'www-authenticate' field of "
-                   "'{}', DC/OS only supports ['oauthjwt', 'acsjwt']".format(
-                       response.headers['WWW-Authenticate']))
+            msg = f"Server responded with an HTTP 'www-authenticate' field of '{response.headers['WWW-Authenticate']}', DC/OS only supports ['oauthjwt', 'acsjwt']"
+
             raise DCOSException(msg)
     else:
         logger.debug("HTTP response: no www-authenticate field found")
@@ -80,11 +82,9 @@ def _prompt_user_for_token(url, token_type):
             'Exception occurred while calling webbrowser.open(%r): %s',
             url, exc,
         )
-        pass
     sys.stderr.write(msg)
     sys.stderr.flush()
-    token = sys.stdin.readline().strip()
-    return token
+    return sys.stdin.readline().strip()
 
 
 def _get_dcostoken_by_post_with_creds(dcos_url, creds):
@@ -126,11 +126,11 @@ def _prompt_for_uid_password(username, hostname):
     """
 
     if username is None:
-        sys.stdout.write("{}'s username: ".format(hostname))
+        sys.stdout.write(f"{hostname}'s username: ")
         sys.stdout.flush()
         username = sys.stdin.readline().strip()
 
-    password = getpass.getpass("{}@{}'s password: ".format(username, hostname))
+    password = getpass.getpass(f"{username}@{hostname}'s password: ")
 
     return username, password
 
@@ -395,12 +395,10 @@ def auth_type_description(provider_info):
         msg = ("Log in using an LDAP user account "
                "(username and password)")
     elif auth_type == AUTH_TYPE_SAML_SP_INITIATED:
-        msg = "Log in using SAML 2.0 ({})".format(
-                provider_info["description"])
+        msg = f'Log in using SAML 2.0 ({provider_info["description"]})'
     elif auth_type in [AUTH_TYPE_OIDC_AUTHORIZATION_CODE_FLOW,
                        AUTH_TYPE_OIDC_IMPLICIT_FLOW]:
-        msg = "Log in using OpenID Connect ({})".format(
-                provider_info["description"])
+        msg = f'Log in using OpenID Connect ({provider_info["description"]})'
     else:
         raise DCOSException("Unknown authentication type")
 

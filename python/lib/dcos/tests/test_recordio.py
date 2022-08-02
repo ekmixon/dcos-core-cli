@@ -49,7 +49,7 @@ def test_encode_decode():
         }
 
         encoded = b""
-        for i in range(total_messages):
+        for _ in range(total_messages):
             encoded += encoder.encode(message)
 
     except Exception as exception:

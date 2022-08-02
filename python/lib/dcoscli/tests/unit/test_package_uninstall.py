@@ -99,7 +99,7 @@ def test_confirm_uninstall_cli_only():
 def _pkg_dict(name, app=True, cli=True):
     pkg = {"name": name}
     if app:
-        pkg['apps'] = ['/' + name]
+        pkg['apps'] = [f'/{name}']
     if cli:
         pkg['command'] = {"name": name}
 

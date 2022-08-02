@@ -19,9 +19,7 @@ def _gib(n):
 
 
 def _percentage(dividend, divisor):
-    if divisor > 0:
-        return dividend / divisor * 100
-    return 0
+    return dividend / divisor * 100 if divisor > 0 else 0
 
 
 def _fetch_metrics_datapoints(url):
@@ -81,10 +79,7 @@ def _get_datapoint_value(datapoints, name, tags=None):
     :rtype: float
     """
     datapoint = _get_datapoint(datapoints, name, tags)
-    if datapoint is not None:
-        return datapoint.get('value', 0.0)
-
-    return 0.0
+    return datapoint.get('value', 0.0) if datapoint is not None else 0.0
 
 
 def _node_summary_json(datapoints):
@@ -220,9 +215,7 @@ def _format_datapoints(datapoints):
             return '{:0.2f}GiB'.format(_gib(v))
         if u == 'percent':
             return '{:0.2f}%'.format(v)
-        if type(v) == float:
-            return '{:0.2f}'.format(v)
-        return v
+        return '{:0.2f}'.format(v) if type(v) == float else v
 
     formatted_datapoints = []
     for d in datapoints:
@@ -255,9 +248,9 @@ def print_node_metrics(url, summary, json_):
         if json_:
             return emitter.publish(_node_summary_json(datapoints))
         table = tables.metrics_summary_table(_node_summary_data(datapoints))
+    elif json_:
+        return emitter.publish(datapoints)
     else:
-        if json_:
-            return emitter.publish(datapoints)
         table = tables.metrics_details_table(_format_datapoints(datapoints))
 
     return emitter.publish(table)
@@ -289,9 +282,9 @@ def print_task_metrics(url, app_url, summary, json_):
         if json_:
             return emitter.publish(_task_summary_json(datapoints))
         table = tables.metrics_summary_table(_task_summary_data(datapoints))
+    elif json_:
+        return emitter.publish(datapoints)
     else:
-        if json_:
-            return emitter.publish(datapoints)
         table = tables.metrics_details_table(_format_datapoints(datapoints),
                                              False)
 

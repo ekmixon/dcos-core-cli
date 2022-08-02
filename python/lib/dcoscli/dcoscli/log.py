@@ -92,7 +92,7 @@ def _stream_files(curr_header, fn, mesos_files):
             # is unavailable, or if the file doesn't exist in the
             # sandbox.  In any case, we silently remove the file and
             # continue.
-            logger.exception("Error reading file: {}".format(e))
+            logger.exception(f"Error reading file: {e}")
 
             reachable_files.remove(mesos_file)
             continue
@@ -124,7 +124,7 @@ def _output(curr_header, output_header, header, lines):
 
     if lines:
         if output_header and header != curr_header:
-            emitter.publish('===> {} <==='.format(header))
+            emitter.publish(f'===> {header} <===')
         if lines == ['']:
             emitter.publish(DefaultError('No logs for this task'))
         for line in lines:
@@ -191,9 +191,8 @@ def _read_rest(mesos_file):
     data = mesos_file.read()
     if data == '':
         return []
-    else:
-        data_tmp = _strip_trailing_newline(data)
-        return data_tmp.split('\n')
+    data_tmp = _strip_trailing_newline(data)
+    return data_tmp.split('\n')
 
 
 def _strip_trailing_newline(s):
@@ -247,8 +246,7 @@ def dcos_log_enabled(version=1):
         return logging_strategy() == 'journald'
     elif version == 2:
         return has_log_v2_capability()
-    raise DCOSException(
-        "invalid dcos-log version {}. Must be 1 or 2".format(version))
+    raise DCOSException(f"invalid dcos-log version {version}. Must be 1 or 2")
 
 
 def logging_strategy():
@@ -278,11 +276,8 @@ def logging_strategy():
                         'your cluster. Defaulting to files API.')
         return strategy
 
-    try:
+    with contextlib.suppress(Exception):
         strategy = response['uiConfiguration']['plugins']['mesos']['logging-strategy']  # noqa: ignore=F403,E501
-    except Exception:
-        pass
-
     return strategy
 
 
@@ -312,8 +307,7 @@ def follow_logs(url):
             continue
 
         if 'fields' not in entry_json:
-            raise DCOSException(
-                'Missing `fields` in log entry: {}'.format(entry))
+            raise DCOSException(f'Missing `fields` in log entry: {entry}')
 
         # `MESSAGE` is optional field. Skip the log entry if it's missing.
         if 'MESSAGE' not in entry_json['fields']:
@@ -337,9 +331,7 @@ def is_success(code):
     :param code: HTTP response codes
     :type code: int
     """
-    if (200 <= code < 300) or code in [404, 500]:
-        return True
-    return False
+    return 200 <= code < 300 or code in [404, 500]
 
 
 def print_logs_range(url):
@@ -350,11 +342,10 @@ def print_logs_range(url):
     :type url: str
     """
     with contextlib.closing(http.get(url, is_success=is_success,
-                                     headers={'Accept': 'text/plain'})) as r:
+                                         headers={'Accept': 'text/plain'})) as r:
 
         if r.status_code == 500:
-            raise DCOSException(
-                '{} Error message: {}'.format(DCOSHTTPException(r), r.text))
+            raise DCOSException(f'{DCOSHTTPException(r)} Error message: {r.text}')
         if r.status_code == 404:
             raise DCOSException('No files exist. Exiting.')
         if r.status_code == 204:
@@ -362,8 +353,9 @@ def print_logs_range(url):
 
         if r.status_code != 200:
             raise DCOSException(
-                'Error getting logs. Url: {};'
-                'response code: {}'.format(url, r.status_code))
+                f'Error getting logs. Url: {url};response code: {r.status_code}'
+            )
+
 
         for line in r.iter_lines():
             emitter.publish(line.decode('utf-8', 'ignore'))

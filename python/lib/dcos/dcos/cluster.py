@@ -45,10 +45,8 @@ def move_to_cluster_config():
         res = http.get(cluster_url)
         cluster_id = res.json().get("CLUSTER_ID")
 
-    # don't move cluster if dcos_url is not valid
     except DCOSException as e:
-        logger.error(
-            "Error trying to find cluster id: {}".format(e))
+        logger.error(f"Error trying to find cluster id: {e}")
         return
 
     # create cluster id dir
@@ -112,9 +110,8 @@ def setup_cluster_config(dcos_url, temp_path, stored_cert):
         cluster_id = res.json().get("CLUSTER_ID")
 
     except DCOSException as e:
-        msg = ("Error trying to find cluster id: {}\n "
-               "Please make sure the provided DC/OS URL is valid: {}".format(
-                   e, dcos_url))
+        msg = f"Error trying to find cluster id: {e}\n Please make sure the provided DC/OS URL is valid: {dcos_url}"
+
         raise DCOSException(msg)
 
     # create cluster id dir
@@ -122,7 +119,7 @@ def setup_cluster_config(dcos_url, temp_path, stored_cert):
                                 constants.DCOS_CLUSTERS_SUBDIR,
                                 cluster_id)
     if os.path.exists(cluster_path):
-        raise DCOSException("Cluster [{}] is already setup".format(dcos_url))
+        raise DCOSException(f"Cluster [{dcos_url}] is already setup")
 
     util.ensure_dir_exists(cluster_path)
 
@@ -138,7 +135,7 @@ def setup_cluster_config(dcos_url, temp_path, stored_cert):
         config.set_val("core.ssl_verify", cert_path, config_path=config_path)
 
     cluster_name = cluster_id
-    try:
+    with contextlib.suppress(DCOSException):
         url = dcos_url.rstrip('/') + '/mesos/state-summary'
         # This is an informational request,
         # a 5 seconds read timeout is enough.
@@ -146,9 +143,6 @@ def setup_cluster_config(dcos_url, temp_path, stored_cert):
                               toml_config=cluster.get_config(),
                               timeout=5)
         cluster_name = name_query.json().get("cluster")
-
-    except DCOSException:
-        pass
 
     config.set_val("cluster.name", cluster_name, config_path=config_path)
 
@@ -195,7 +189,7 @@ def set_attached(cluster_path):
         try:
             util.sh_move(attached_file, cluster_path)
         except DCOSException as e:
-            msg = "Failed to attach cluster: {}".format(e)
+            msg = f"Failed to attach cluster: {e}"
             raise DCOSException(msg)
 
     else:
@@ -214,7 +208,7 @@ def get_cluster_cert(dcos_url):
     :rtype: str
     """
 
-    cert_bundle_url = dcos_url.rstrip() + "/ca/dcos-ca.crt"
+    cert_bundle_url = f"{dcos_url.rstrip()}/ca/dcos-ca.crt"
 
     unverified = ssl.create_default_context()
     unverified.check_hostname = False
@@ -226,12 +220,10 @@ def get_cluster_cert(dcos_url):
         with urlopen(cert_bundle_url, context=unverified) as f:
             return f.read().decode('utf-8')
     except urllib.error.HTTPError as e:
-        # Open source DC/OS does not currently expose its root CA certificate
         if e.code == 404:
             return False
-        else:
-            logger.debug(e)
-            raise DCOSException(error_msg)
+        logger.debug(e)
+        raise DCOSException(error_msg)
     except Exception as e:
         logger.debug(e)
         raise DCOSException(error_msg)
@@ -414,8 +406,7 @@ class Cluster():
             return VERSION_UNKNOWN
 
     def is_attached(self):
-        cluster_envvar = os.environ.get(constants.DCOS_CLUSTER)
-        if cluster_envvar:
+        if cluster_envvar := os.environ.get(constants.DCOS_CLUSTER):
             return cluster_envvar in [self.cluster_id, self.get_name()]
 
         return os.path.exists(os.path.join(

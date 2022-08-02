@@ -176,7 +176,7 @@ def _request(method,
                "please run: `dcos config set core.ssl_verify <value>`")
         description = config.get_property_description("core", "ssl_verify")
         if description is not None:
-            msg += "\n<value>: {}".format(description)
+            msg += f"\n<value>: {description}"
         raise DCOSException(msg)
     except requests.exceptions.ConnectionError as e:
         logger.exception("HTTP Connection Error")
@@ -186,7 +186,7 @@ def _request(method,
         raise DCOSException('Request to URL [{0}] timed out.'.format(url))
     except requests.exceptions.RequestException as e:
         logger.exception("HTTP Exception")
-        raise DCOSException('HTTP Exception: {}'.format(e))
+        raise DCOSException(f'HTTP Exception: {e}')
 
     logger.info('Received HTTP response [%r]: %r',
                 response.status_code,
@@ -264,12 +264,11 @@ def request(method,
                            is_success=is_success, timeout=timeout,
                            verify=verify, **kwargs)
         else:
-            if auth_token is not None:
-                msg = ("Your core.dcos_acs_token is invalid. "
-                       "Please run: `dcos auth login`")
-                raise DCOSAuthenticationException(response, msg)
-            else:
+            if auth_token is None:
                 raise DCOSAuthenticationException(response)
+            msg = ("Your core.dcos_acs_token is invalid. "
+                   "Please run: `dcos auth login`")
+            raise DCOSAuthenticationException(response, msg)
     elif response.status_code == 422:
         raise DCOSUnprocessableException(response)
     elif response.status_code == 403:
@@ -383,5 +382,5 @@ class DCOSAcsAuth(AuthBase):
         self.token = token
 
     def __call__(self, r):
-        r.headers['Authorization'] = "token={}".format(self.token)
+        r.headers['Authorization'] = f"token={self.token}"
         return r

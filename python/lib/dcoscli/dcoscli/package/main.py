@@ -32,7 +32,9 @@ def _main(argv):
     args = docopt.docopt(
         default_doc("package"),
         argv=argv,
-        version='dcos-package version {}'.format(dcoscli.version))
+        version=f'dcos-package version {dcoscli.version}',
+    )
+
     http.silence_requests_warnings()
 
     return cmds.execute(_cmds(), args)
@@ -141,8 +143,11 @@ def _list_repos(is_json):
     if is_json:
         return emitter.publish(repos)
     elif repos.get("repositories"):
-        repos = ["{}: {}".format(repo.get("name"), repo.get("uri"))
-                 for repo in repos.get("repositories")]
+        repos = [
+            f'{repo.get("name")}: {repo.get("uri")}'
+            for repo in repos.get("repositories")
+        ]
+
         emitter.publish("\n".join(repos))
     else:
         msg = ("There are currently no repos configured. "
@@ -367,8 +372,8 @@ def _install(package_name, package_version, options_path, cli,
         pkg.options(user_options)
 
         # Install in Marathon
-        msg = 'Installing Marathon app for package [{}] version [{}]'.format(
-            pkg.name(), pkg.version())
+        msg = f'Installing Marathon app for package [{pkg.name()}] version [{pkg.version()}]'
+
 
         emitter.publish(msg)
 
@@ -376,21 +381,19 @@ def _install(package_name, package_version, options_path, cli,
 
     if cli and pkg.cli_definition():
         # Install subcommand
-        msg = 'Installing CLI subcommand for package [{}] version [{}]'.format(
-            pkg.name(), pkg.version())
+        msg = f'Installing CLI subcommand for package [{pkg.name()}] version [{pkg.version()}]'
+
         emitter.publish(msg)
 
         subcommand.install(pkg, global_)
 
         subcommand_paths = subcommand.get_package_commands(package_name)
-        new_commands = [os.path.basename(p).replace('-', ' ', 1)
-                        for p in subcommand_paths]
-
-        if new_commands:
+        if new_commands := [
+            os.path.basename(p).replace('-', ' ', 1) for p in subcommand_paths
+        ]:
             commands = ', '.join(new_commands)
             plural = "s" if len(new_commands) > 1 else ""
-            emitter.publish("New command{} available: dcos {}".format(
-                plural, commands))
+            emitter.publish(f"New command{plural} available: dcos {commands}")
 
     post_install_notes = pkg_json.get('postInstallNotes')
     if app and post_install_notes:
@@ -509,7 +512,7 @@ def _uninstall(package_name, remove_all, app_id, cli, app, skip_confirmation):
             package_manager, None, package_name, cli_only=False)
         installed_pkg = next(iter(installed), None)
         if not installed_pkg or not installed_pkg.get('name'):
-            msg = "Package '{}' is not installed.".format(package_name)
+            msg = f"Package '{package_name}' is not installed."
             emitter.publish(msg)
             return 1
 
@@ -538,8 +541,8 @@ def _confirm_uninstall(installed_pkg, remove_all, app_id):
     package_name = installed_pkg.get('name')
 
     if not installed_pkg.get("apps"):
-        confirm_cta = ("WARNING: This will uninstall [{}] and delete its "
-                       "subcommand(s).").format(package_name)
+        confirm_cta = f"WARNING: This will uninstall [{package_name}] and delete its subcommand(s)."
+
         confirm_prompt = "Please type the name of the package to confirm"
         expected_text = package_name
     elif remove_all:
@@ -547,26 +550,21 @@ def _confirm_uninstall(installed_pkg, remove_all, app_id):
                        "uninstall all instances of the [{package_name}] "
                        "package, and delete all data for all {package_name} "
                        "instances.").format(package_name=package_name)
-        confirm_prompt = "Please type 'uninstall all {}'".format(package_name)
-        expected_text = "uninstall all {}".format(package_name)
+        confirm_prompt = f"Please type 'uninstall all {package_name}'"
+        expected_text = f"uninstall all {package_name}"
     elif app_id:
-        confirm_cta = ("WARNING: This action cannot be undone. This will "
-                       "uninstall [{}] and delete all of its persistent "
-                       "(logs, configurations, database artifacts, "
-                       "everything).").format(app_id)
+        confirm_cta = f"WARNING: This action cannot be undone. This will uninstall [{app_id}] and delete all of its persistent (logs, configurations, database artifacts, everything)."
+
         confirm_prompt = "Please type the full name of the app ID to confirm"
         expected_text = app_id
     else:
-        confirm_cta = ("WARNING: This action cannot be undone. This will "
-                       "uninstall [{}] and delete all of its persistent "
-                       "data (logs, configurations, database artifacts, "
-                       "everything).").format(package_name)
+        confirm_cta = f"WARNING: This action cannot be undone. This will uninstall [{package_name}] and delete all of its persistent data (logs, configurations, database artifacts, everything)."
+
         confirm_prompt = "Please type the name of the service to confirm"
         expected_text = package_name
 
     emitter.publish(confirm_cta)
-    if not confirm_text(confirm_prompt, expected_text):
-        emitter.publish("Cancelling uninstall.")
-        return False
-    else:
+    if confirm_text(confirm_prompt, expected_text):
         return True
+    emitter.publish("Cancelling uninstall.")
+    return False

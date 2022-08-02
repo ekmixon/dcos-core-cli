@@ -57,10 +57,7 @@ def task_table(tasks):
 
 
 def _hostname(task):
-    if task.slave() is None:
-        return EMPTY_ENTRY
-    else:
-        return task.slave()["hostname"]
+    return EMPTY_ENTRY if task.slave() is None else task.slave()["hostname"]
 
 
 def app_table(apps, deployments):
@@ -78,16 +75,10 @@ def app_table(apps, deployments):
         deployment_map[deployment['id']] = deployment
 
     def get_cmd(app):
-        if app["cmd"] is not None:
-            return app["cmd"]
-        else:
-            return app["args"]
+        return app["cmd"] if app["cmd"] is not None else app["args"]
 
     def get_container(app):
-        if app["container"] is not None:
-            return app["container"]["type"]
-        else:
-            return "mesos"
+        return app["container"]["type"] if app["container"] is not None else "mesos"
 
     def get_health(app):
         if app["healthChecks"]:
@@ -108,7 +99,7 @@ def app_table(apps, deployments):
                     if action['app'] == app['id']:
                         actions.append(DEPLOYMENT_DISPLAY[action['action']])
 
-        if len(actions) == 0:
+        if not actions:
             return EMPTY_ENTRY
         elif len(actions) == 1:
             return actions[0]
@@ -307,9 +298,10 @@ def job_queue_table(job_queue):
     flatten_job_list = []
     for job in job_queue:
         job_id = job["jobId"]
-        for jobruns in job.get("runs"):
-            flatten_job_list.append(
-                {'jobId': job_id, 'jobrun_id': jobruns.get("runId")})
+        flatten_job_list.extend(
+            {'jobId': job_id, 'jobrun_id': jobruns.get("runId")}
+            for jobruns in job.get("runs")
+        )
 
     fields = OrderedDict([
         ('id', lambda s: s['jobId']),
@@ -640,10 +632,7 @@ def queued_app_table(queued_app):
         :type divisor: int
         :rtype: str
         """
-        if divisor == 0:
-            return 0
-        else:
-            return 100 * dividend / divisor
+        return 0 if divisor == 0 else 100 * dividend / divisor
 
     def add_reason_entry(calculations, key, requested, reason_entry):
         """Pretty prints the division of
@@ -722,10 +711,7 @@ def queued_app_table(queued_app):
     app = queued_app.get('app')
     if app:
         roles = app.get('acceptedResourceRoles', [])
-        if len(roles) == 0:
-            spec_roles = '[*]'
-        else:
-            spec_roles = roles
+        spec_roles = '[*]' if len(roles) == 0 else roles
         spec_constraints = app.get('constraints', EMPTY_ENTRY)
         spec_cpus = app.get('cpus', EMPTY_ENTRY)
         spec_mem = app.get('mem', EMPTY_ENTRY)
@@ -750,10 +736,7 @@ def queued_app_table(queued_app):
         roles = pod.\
             get('scheduling', {}).get('placement', {}).\
             get('acceptedResourceRoles', [])
-        if len(roles) == 0:
-            spec_roles = '[*]'
-        else:
-            spec_roles = roles
+        spec_roles = '[*]' if len(roles) == 0 else roles
         spec_constraints = pod.\
             get('scheduling', {}).get('placement', {}).\
             get('constraints', EMPTY_ENTRY)
@@ -814,10 +797,7 @@ def queued_app_details_table(queued_app):
         :type value: string
         :rtype: PrettyTable
         """
-        if value not in entry.get('reason', []):
-            return 'ok'
-        else:
-            return '-'
+        return 'ok' if value not in entry.get('reason', []) else '-'
 
     reasons = queued_app.get('lastUnusedOffers')
     fields = OrderedDict([
@@ -893,14 +873,21 @@ def package_search_table(search_results):
 
     """
 
-    fields = OrderedDict([
-        ('NAME', lambda p: p['name']),
-        ('VERSION', lambda p: p['currentVersion']),
-        ('SELECTED', lambda p: p.get("selected", False)),
-        ('FRAMEWORK', lambda p: p['framework']),
-        ('DESCRIPTION', lambda p: p['description']
-            if len(p['description']) < 77 else p['description'][0:77] + "...")
-    ])
+    fields = OrderedDict(
+        [
+            ('NAME', lambda p: p['name']),
+            ('VERSION', lambda p: p['currentVersion']),
+            ('SELECTED', lambda p: p.get("selected", False)),
+            ('FRAMEWORK', lambda p: p['framework']),
+            (
+                'DESCRIPTION',
+                lambda p: p['description']
+                if len(p['description']) < 77
+                else p['description'][:77] + "...",
+            ),
+        ]
+    )
+
 
     packages = []
     for package in search_results['packages']:

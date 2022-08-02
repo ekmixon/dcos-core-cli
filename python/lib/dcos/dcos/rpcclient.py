@@ -100,7 +100,7 @@ class RpcClient(object):
             message = '\n'.join(err['error'] for err in json_body['errors'])
             return _default_dcos_error(message)
 
-        return 'Error: {}'.format(message)
+        return f'Error: {message}'
 
     def http_req(self, method_fn, path, *args, **kwargs):
         """Make an HTTP request, and raise a DCOS-specific exception for
@@ -163,6 +163,4 @@ def _default_dcos_error(message=""):
     :rtype: str
     """
 
-    return ("Service likely misconfigured. Please check your proxy or "
-            "Service URL settings. See dcos config --help. {}").format(
-                message)
+    return f"Service likely misconfigured. Please check your proxy or Service URL settings. See dcos config --help. {message}"

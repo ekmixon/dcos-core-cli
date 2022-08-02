@@ -9,7 +9,7 @@ class Subproc():
     def __init__(self):
         self._env = os.environ.copy()
         lib_path = 'LD_LIBRARY_PATH'
-        lib_path_value = self._env.get(lib_path + '_ORIG')
+        lib_path_value = self._env.get(f'{lib_path}_ORIG')
         # remove pyinstaller overriding `LD_LIBRARY_PATH`
         # remove with stable release of fix:
         # https://github.com/pyinstaller/pyinstaller/pull/2148

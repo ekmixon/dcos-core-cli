@@ -12,8 +12,9 @@ def test_open_file():
     with pytest.raises(DCOSException) as excinfo:
         with util.open_file(path):
             pass
-    assert 'Error opening file [{}]: No such file or directory'.format(path) \
-        in str(excinfo.value)
+    assert f'Error opening file [{path}]: No such file or directory' in str(
+        excinfo.value
+    )
 
 
 def test_read_file_secure_with_trailing_newline():

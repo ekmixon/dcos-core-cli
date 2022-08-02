@@ -7,11 +7,10 @@ def make_command_summary_string(command_summaries):
     :rtype: str
     """
 
-    doc = ''
-    for command, summary in command_summaries:
-        doc += '\n\t{:15}\t{}'.format(command, summary.strip())
-
-    return doc
+    return ''.join(
+        '\n\t{:15}\t{}'.format(command, summary.strip())
+        for command, summary in command_summaries
+    )
 
 
 def make_generic_usage_message(doc):
@@ -23,4 +22,4 @@ def make_generic_usage_message(doc):
     :rtype: str
     """
 
-    return 'Unknown option\n{}'.format(doc)
+    return f'Unknown option\n{doc}'

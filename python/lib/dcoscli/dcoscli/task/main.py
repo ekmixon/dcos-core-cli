@@ -98,15 +98,19 @@ def _main(argv):
             default_doc("task_exec"),
             default_doc("task"),
             argv=argv[2:],
-            version="dcos-task version {}".format(dcoscli.version),
+            version=f"dcos-task version {dcoscli.version}",
             options_first=True,
             base_subcommand="task",
-            subcommand="exec")
+            subcommand="exec",
+        )
+
     else:
         args = docopt.docopt(
             default_doc("task"),
             argv=argv,
-            version="dcos-task version {}".format(dcoscli.version))
+            version=f"dcos-task version {dcoscli.version}",
+        )
+
 
     return cmds.execute(_cmds(), args)
 
@@ -196,13 +200,10 @@ def _task(task, all_, completed, json_):
         return 0
 
     if len(tasks) == 0 and task is not None:
-            raise DCOSException(
-                'Cannot find a task with ID containing "{}"'.format(task))
-    else:
-        table = tables.task_table(tasks)
-        output = six.text_type(table)
-        if output:
-            emitter.publish(output)
+        raise DCOSException(f'Cannot find a task with ID containing "{task}"')
+    table = tables.task_table(tasks)
+    if output := six.text_type(table):
+        emitter.publish(output)
 
     return 0
 
@@ -260,13 +261,10 @@ def _log(all_, follow, completed, lines, task, file_):
         if not fltr:
             raise DCOSException("No tasks found. Exiting.")
         elif not completed:
-            completed_tasks = master.tasks(completed=True, fltr=fltr)
-            if completed_tasks:
-                msg = 'No running tasks match ID [{}]; however, there '.format(
-                    fltr)
+            if completed_tasks := master.tasks(completed=True, fltr=fltr):
+                msg = f'No running tasks match ID [{fltr}]; however, there '
                 if len(completed_tasks) > 1:
-                    msg += 'are {} matching completed tasks. '.format(
-                        len(completed_tasks))
+                    msg += f'are {len(completed_tasks)} matching completed tasks. '
                 else:
                     msg += 'is 1 matching completed task. '
                 msg += 'Run with --completed to see these logs.'
@@ -300,9 +298,9 @@ def _log(all_, follow, completed, lines, task, file_):
         _dcos_log(follow, tasks, lines, file_, completed)
         return 0
 
-    raise DCOSException('Invalid file {}. dcos-log only '
-                        'supports stdout/stderr'.format(file_))
-    return 1
+    raise DCOSException(
+        f'Invalid file {file_}. dcos-log only supports stdout/stderr'
+    )
 
 
 def get_nested_container_id(task):
@@ -317,19 +315,19 @@ def get_nested_container_id(task):
     # get current task state
     task_state = task.get('state')
     if not task_state:
-        logger.debug('Full task state: {}'.format(task))
+        logger.debug(f'Full task state: {task}')
         raise DCOSException('Invalid executor info. '
                             'Missing field `state`')
 
     container_ids = []
     statuses = task.get('statuses')
     if not statuses:
-        logger.debug('Full task state: {}'.format(task))
+        logger.debug(f'Full task state: {task}')
         raise DCOSException('Invalid executor info. Missing field `statuses`')
 
     for status in statuses:
         if 'state' not in status:
-            logger.debug('Full task state: {}'.format(task))
+            logger.debug(f'Full task state: {task}')
             raise DCOSException('Invalid executor info. Missing field `state`')
 
         if status['state'] != task_state:
@@ -337,7 +335,7 @@ def get_nested_container_id(task):
 
         container_status = status.get('container_status')
         if not container_status:
-            logger.debug('Full task state: {}'.format(task))
+            logger.debug(f'Full task state: {task}')
 
             # if task status is TASK_FAILED and no container_id
             # available then the executor has never started and no
@@ -350,7 +348,7 @@ def get_nested_container_id(task):
 
         container_id = container_status.get('container_id')
         if not container_id:
-            logger.debug('Full task state: {}'.format(task))
+            logger.debug(f'Full task state: {task}')
             raise DCOSException('Invalid executor info. '
                                 'Missing field `container_id`')
 
@@ -358,7 +356,7 @@ def get_nested_container_id(task):
         while True:
             value = container_id.get('value')
             if not value:
-                logger.debug('Full task state: {}'.format(task))
+                logger.debug(f'Full task state: {task}')
                 raise DCOSException('Invalid executor info. Missing field'
                                     '`value` for nested container ids')
 
@@ -387,11 +385,12 @@ def _dcos_log_v2(follow, tasks, lines, file_):
 
     if len(tasks) != 1:
         raise DCOSException(
-            "found more than one task with the same name: {}. Please provide "
-            "a unique task name.".format([task['id'] for task in tasks]))
+            f"found more than one task with the same name: {[task['id'] for task in tasks]}. Please provide a unique task name."
+        )
+
 
     task = tasks[0]
-    endpoint = '/system/v1/logs/v2/task/{}/file/{}'.format(task['id'], file_)
+    endpoint = f"/system/v1/logs/v2/task/{task['id']}/file/{file_}"
     dcos_url = config.get_config_val('core.dcos_url').rstrip('/')
     if not dcos_url:
         raise config.missing_config_exception(['core.dcos_url'])
@@ -403,12 +402,10 @@ def _dcos_log_v2(follow, tasks, lines, file_):
         if lines > 0:
             lines *= -1
 
-        endpoint += '?cursor=END&skip={}'.format(lines)
+        endpoint += f'?cursor=END&skip={lines}'
 
     url = dcos_url + endpoint
-    if follow:
-        return log.follow_logs(url)
-    return log.print_logs_range(url)
+    return log.follow_logs(url) if follow else log.print_logs_range(url)
 
 
 def _dcos_log(follow, tasks, lines, file_, completed):
@@ -428,41 +425,34 @@ def _dcos_log(follow, tasks, lines, file_, completed):
 
     # only stdout and stderr is supported
     if file_ not in ('stdout', 'stderr'):
-        raise DCOSException('Expect file stdout or stderr. '
-                            'Got {}'.format(file_))
-    # state json may container tasks and completed_tasks fields. Based on
-    # user request we should traverse the appropriate field.
-    tasks_field = 'tasks'
-    if completed:
-        tasks_field = 'completed_tasks'
-
+        raise DCOSException(f'Expect file stdout or stderr. Got {file_}')
+    tasks_field = 'completed_tasks' if completed else 'tasks'
     for task in tasks:
         executor_info = task.executor()
         if not executor_info:
             continue
         if (tasks_field not in executor_info and
                 not isinstance(executor_info[tasks_field], list)):
-            logger.debug('Executor info: {}'.format(executor_info))
-            raise DCOSException('Invalid executor info. '
-                                'Missing field {}'.format(tasks_field))
+            logger.debug(f'Executor info: {executor_info}')
+            raise DCOSException(f'Invalid executor info. Missing field {tasks_field}')
 
         for t in executor_info[tasks_field]:
             container_id = get_nested_container_id(t)
             if not container_id:
-                logger.debug('Executor info: {}'.format(executor_info))
+                logger.debug(f'Executor info: {executor_info}')
                 raise DCOSException(
                     'Invalid executor info. Missing container id')
 
             # get slave_id field
             slave_id = t.get('slave_id')
             if not slave_id:
-                logger.debug('Executor info: {}'.format(executor_info))
+                logger.debug(f'Executor info: {executor_info}')
                 raise DCOSException(
                     'Invalid executor info. Missing field `slave_id`')
 
             framework_id = t.get('framework_id')
             if not framework_id:
-                logger.debug('Executor info: {}'.format(executor_info))
+                logger.debug(f'Executor info: {executor_info}')
                 raise DCOSException(
                     'Invalid executor info. Missing field `framework_id`')
 
@@ -472,7 +462,7 @@ def _dcos_log(follow, tasks, lines, file_, completed):
                 # if `executor_id` is an empty string, default to `id`.
                 executor_id = t.get('id')
             if not executor_id:
-                logger.debug('Executor info: {}'.format(executor_info))
+                logger.debug(f'Executor info: {executor_info}')
                 raise DCOSException(
                     'Invalid executor info. Missing executor id')
 
@@ -486,22 +476,19 @@ def _dcos_log(follow, tasks, lines, file_, completed):
             if follow:
                 endpoint_type = 'stream'
 
-            endpoint = ('/system/v1/agent/{}/logs/v1/{}/framework/{}'
-                        '/executor/{}/container/{}'.format(slave_id,
-                                                           endpoint_type,
-                                                           framework_id,
-                                                           executor_id,
-                                                           container_id))
+            endpoint = f'/system/v1/agent/{slave_id}/logs/v1/{endpoint_type}/framework/{framework_id}/executor/{executor_id}/container/{container_id}'
+
             # append request parameters.
             # `skip_prev` will move the cursor to -n lines.
             # `filter=STREAM:{STDOUT,STDERR}` will filter logs by label.
-            url = (dcos_url + endpoint +
-                   '?skip_prev={}&filter=STREAM:{}'.format(lines,
-                                                           file_.upper()))
+            url = (
+                dcos_url
+                + endpoint
+                + f'?skip_prev={lines}&filter=STREAM:{file_.upper()}'
+            )
 
-            if follow:
-                return log.follow_logs(url)
-            return log.print_logs_range(url)
+
+            return log.follow_logs(url) if follow else log.print_logs_range(url)
 
 
 def _ls(task, path, all_, long_, completed):
@@ -534,8 +521,7 @@ def _ls(task, path, all_, long_, completed):
         if task is None:
             raise DCOSException("No tasks found")
         else:
-            raise DCOSException(
-                'Cannot find a task with ID containing "{}"'.format(task))
+            raise DCOSException(f'Cannot find a task with ID containing "{task}"')
 
     try:
         all_files = []
@@ -545,15 +531,14 @@ def _ls(task, path, all_, long_, completed):
                 (task_obj['id'], dcos_client.browse(task_obj.slave(), dir_))]
     except DCOSHTTPException as e:
         if e.response.status_code == 404:
-            raise DCOSException(
-                'Cannot access [{}]: No such file or directory'.format(path))
+            raise DCOSException(f'Cannot access [{path}]: No such file or directory')
         else:
             raise
 
     add_header = len(all_files) > 1
     for (task_id, files) in all_files:
         if add_header:
-            emitter.publish('===> {} <==='.format(task_id))
+            emitter.publish(f'===> {task_id} <===')
         if long_:
             emitter.publish(tables.ls_long_table(files))
         else:
@@ -654,19 +639,16 @@ def _metrics(summary, task_id, json_):
     master = mesos.get_master()
     task = master.task(task_id)
     if 'slave_id' not in task:
-        raise DCOSException(
-            'Error finding agent associated with task: {}'.format(task_id))
+        raise DCOSException(f'Error finding agent associated with task: {task_id}')
 
     slave_id = task['slave_id']
     container_id = master.get_container_id(task_id)["value"]
 
-    endpoint = '/system/v1/agent/{}/metrics/v0/containers/{}'.format(
-        slave_id, container_id
-    )
+    endpoint = f'/system/v1/agent/{slave_id}/metrics/v0/containers/{container_id}'
     dcos_url = config.get_config_val('core.dcos_url').rstrip('/')
     if not dcos_url:
         raise config.missing_config_exception(['core.dcos_url'])
 
     url = dcos_url + endpoint
-    app_url = url + '/app'
+    app_url = f'{url}/app'
     return metrics.print_task_metrics(url, app_url, summary, json_)

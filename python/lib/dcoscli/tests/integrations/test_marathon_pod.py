@@ -161,7 +161,7 @@ def _wait_for_instances(expected_instances, max_attempts=10):
     :rtype: None
     """
 
-    for attempt in range(max_attempts):
+    for _ in range(max_attempts):
         returncode, stdout, stderr = exec_command(_POD_LIST_CMD + ['--json'])
 
         assert stderr == b''
@@ -174,8 +174,7 @@ def _wait_for_instances(expected_instances, max_attempts=10):
         if actual_instances == expected_instances:
             return
         time.sleep(1)
-    else:
-        assert False, "Timed out waiting for expected instance counts"
+    assert False, "Timed out waiting for expected instance counts"
 
 
 def _get_pod_instance_ids(pod_id, target_instance_count):
@@ -191,7 +190,7 @@ def _get_pod_instance_ids(pod_id, target_instance_count):
     :rtype: tuple(str)
     """
 
-    _wait_for_instances({'/{}'.format(pod_id): target_instance_count})
+    _wait_for_instances({f'/{pod_id}': target_instance_count})
 
     show_cmd = _POD_SHOW_CMD + [pod_id]
     returncode, stdout, stderr = exec_command(show_cmd)

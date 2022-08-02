@@ -44,7 +44,7 @@ def command_executables(subcommand):
         msg = 'Found more than one executable for command {!r}. {!r}'
         raise DCOSException(msg.format(subcommand, executables))
 
-    if len(executables) == 0:
+    if not executables:
         msg = "{!r} is not a dcos command."
         raise DCOSException(msg.format(subcommand))
 
@@ -74,8 +74,7 @@ def get_package_commands(package_name):
     if os.path.exists(plugin_toml):
         with open(plugin_toml, "r", encoding="utf-8") as fp:
             plugin = toml.load(fp)
-            for command in plugin["commands"]:
-                executables.append(command["name"])
+            executables.extend(command["name"] for command in plugin["commands"])
     else:
         for filename in os.listdir(bin_dir):
             path = os.path.join(bin_dir, filename)
@@ -252,8 +251,7 @@ def noun(executable_path):
     """
 
     basename = os.path.basename(executable_path)
-    noun = basename[len(constants.DCOS_COMMAND_PREFIX):].replace('.exe', '')
-    return noun
+    return basename[len(constants.DCOS_COMMAND_PREFIX):].replace('.exe', '')
 
 
 def _write_package_json(pkg, pkg_dir):
@@ -301,17 +299,21 @@ def _check_hash(filename, content_hashes):
     :rtype: None
     """
 
-    content_hash = next((contents for contents in content_hashes
-                        if contents.get("algo") == "sha256"),
-                        None)
-    if content_hash:
+    if content_hash := next(
+        (
+            contents
+            for contents in content_hashes
+            if contents.get("algo") == "sha256"
+        ),
+        None,
+    ):
         expected_value = content_hash.get("value")
         actual_value = _hashfile(filename)
         if expected_value != actual_value:
             raise DCOSException(
-                "The hash for the downloaded subcommand [{}] "
-                "does not match the expected value [{}]. Aborting...".format(
-                    actual_value, expected_value))
+                f"The hash for the downloaded subcommand [{actual_value}] does not match the expected value [{expected_value}]. Aborting..."
+            )
+
         else:
             return
     else:
@@ -334,21 +336,22 @@ def _get_cli_binary_info(cli_resources):
         arch = platform.architecture()[0]
         if arch != "64bit":
             raise DCOSException(
-                "There is no compatible subcommand for your architecture [{}] "
-                "We only support x86-64. Aborting...".format(arch))
+                f"There is no compatible subcommand for your architecture [{arch}] We only support x86-64. Aborting..."
+            )
+
         system = platform.system().lower()
         binary = binaries.get(system)
         if binary is None:
             raise DCOSException(
-                "There is not compatible subcommand for your system [{}] "
-                "Aborting...".format(system))
+                f"There is not compatible subcommand for your system [{system}] Aborting..."
+            )
+
         elif "x86-64" in binary:
             return binary["x86-64"]
 
     raise DCOSException(
-        "The CLI subcommand has unexpected format [{}]. "
-        "Please contact the package maintainer. Aborting...".format(
-            cli_resources))
+        f"The CLI subcommand has unexpected format [{cli_resources}]. Please contact the package maintainer. Aborting..."
+    )
 
 
 def _install_cli(pkg, pkg_dir):
@@ -382,8 +385,9 @@ def _install_cli(pkg, pkg_dir):
                     install_operation['pip'])
             else:
                 raise DCOSException(
-                    "Installation methods '{}' not supported".format(
-                        install_operation.keys()))
+                    f"Installation methods '{install_operation.keys()}' not supported"
+                )
+
         else:
             raise DCOSException(
                 "Could not find a CLI subcommand for your platform")
@@ -442,10 +446,7 @@ def _cluster_package_dir(name):
     """
 
     subcommand_dir = _cluster_subcommand_dir()
-    if subcommand_dir is not None:
-        return os.path.join(subcommand_dir, name)
-    else:
-        return None
+    return None if subcommand_dir is None else os.path.join(subcommand_dir, name)
 
 
 def global_package_dir(name):
@@ -568,7 +569,7 @@ def _install_with_binary(
 
                 if kind == "executable":
                     util.ensure_dir_exists(env_bin_dir)
-                    binary_name = "dcos-{}".format(package_name)
+                    binary_name = f"dcos-{package_name}"
                     if util.is_windows_platform():
                         binary_name += '.exe'
                     binary_file = os.path.join(env_bin_dir, binary_name)
@@ -594,9 +595,8 @@ def _install_with_binary(
                         st = os.stat(binary)
                         os.chmod(binary, st.st_mode | stat.S_IEXEC)
         else:
-            msg = ("CLI subcommand for [{}] is an unsupported type: {}"
-                   "Please contact the package maintainer".format(
-                       package_name, kind))
+            msg = f"CLI subcommand for [{package_name}] is an unsupported type: {kind}Please contact the package maintainer"
+
             raise DCOSException(msg)
 
     except DCOSException:
@@ -658,12 +658,8 @@ def _install_with_pip(
         virtualenv_version = _execute_command(
             [virtualenv_path, '--version'])[0].strip().decode('utf-8')
         if LooseVersion("12") > LooseVersion(virtualenv_version):
-            msg = ("Unable to install CLI subcommand. "
-                   "Required program 'virtualenv' must be version 12+, "
-                   "currently version {}\n"
-                   "Please see installation instructions: "
-                   "https://virtualenv.pypa.io/en/latest/installation.html"
-                   "".format(virtualenv_version))
+            msg = f"Unable to install CLI subcommand. Required program 'virtualenv' must be version 12+, currently version {virtualenv_version}\nPlease see installation instructions: https://virtualenv.pypa.io/en/latest/installation.html"
+
             raise DCOSException(msg)
 
         cmd = [_find_virtualenv(bin_directory), env_directory]
@@ -736,7 +732,7 @@ def _generic_error(package_name, err=None):
 
     msg = 'Error installing {!r} package.'.format(package_name)
     if err:
-        msg += ' {}'.format(err)
+        msg += f' {err}'
     return DCOSException(msg)
 
 

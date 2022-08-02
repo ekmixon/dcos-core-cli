@@ -34,7 +34,7 @@ def create_client(toml_config=None):
 
 
 def _get_embed_query_string(embed_list):
-    return '?{}'.format('&'.join('embed=%s' % (item) for item in embed_list))
+    return f"?{'&'.join(f'embed={item}' for item in embed_list)}"
 
 
 def _get_metronome_url(toml_config=None):
@@ -93,8 +93,7 @@ class Client(object):
         # refactor util name it isn't marathon specific
         job_id = util.normalize_marathon_id_path(job_id)
         embeds = _get_embed_query_string(embed_with) if embed_with else None
-        url = ('v1/jobs{}{}'.format(job_id, embeds)
-               if embeds else 'v1/jobs{}'.format(job_id))
+        url = f'v1/jobs{job_id}{embeds}' if embeds else f'v1/jobs{job_id}'
         response = self._rpc.http_req(http.get, url)
         return response.json()
 
@@ -107,7 +106,7 @@ class Client(object):
         :rtype: [dict]
         """
         embeds = _get_embed_query_string(embed_with) if embed_with else None
-        url = 'v1/jobs{}'.format(embeds) if embeds else 'v1/jobs'
+        url = f'v1/jobs{embeds}' if embeds else 'v1/jobs'
         response = self._rpc.http_req(http.get, url)
         return response.json()
 
@@ -208,7 +207,7 @@ class Client(object):
 
         job_id = util.normalize_marathon_id_path(job_id)
         params = self._force_params(force)
-        path = 'v1/jobs{}'.format(job_id)
+        path = f'v1/jobs{job_id}'
         self._rpc.http_req(http.delete, path, params=params)
 
     def get_schedules(self, job_id):
@@ -219,7 +218,7 @@ class Client(object):
         :rtype: json of schedules
         """
         job_id = util.normalize_marathon_id_path(job_id)
-        path = 'v1/jobs{}/schedules'.format(job_id)
+        path = f'v1/jobs{job_id}/schedules'
         response = self._rpc.http_req(http.get, path)
         return response.json()
 
@@ -232,7 +231,7 @@ class Client(object):
         """
         job_id = util.normalize_marathon_id_path(job_id)
         schedule_id = util.normalize_marathon_id_path(schedule_id)
-        path = 'v1/jobs{}/schedules/{}'.format(job_id, schedule_id)
+        path = f'v1/jobs{job_id}/schedules/{schedule_id}'
         response = self._rpc.http_req(http.get, path)
         return response.json()
 
@@ -249,7 +248,7 @@ class Client(object):
         else:
             schedule_json = schedule_resource
 
-        path = 'v1/jobs{}/schedules'.format(job_id)
+        path = f'v1/jobs{job_id}/schedules'
         response = self._rpc.http_req(http.post, path, json=schedule_json)
 
         return response.json()
@@ -267,7 +266,7 @@ class Client(object):
         else:
             schedule_json = schedule_resource
 
-        path = 'v1/jobs{}/schedules/{}'.format(job_id, schedule_id)
+        path = f'v1/jobs{job_id}/schedules/{schedule_id}'
         response = self._rpc.http_req(http.put, path, json=schedule_json)
 
         return response.json()
@@ -284,7 +283,7 @@ class Client(object):
 
         job_id = util.normalize_marathon_id_path(job_id)
         schedule_id = util.normalize_marathon_id_path(schedule_id)
-        path = 'v1/jobs{}/schedules/{}'.format(job_id, schedule_id)
+        path = f'v1/jobs{job_id}/schedules/{schedule_id}'
         self._rpc.http_req(http.delete, path)
 
     def run_job(self, job_id):
@@ -296,7 +295,7 @@ class Client(object):
         """
 
         job_id = util.normalize_marathon_id_path(job_id)
-        path = '/v1/jobs{}/runs'.format(job_id)
+        path = f'/v1/jobs{job_id}/runs'
         response = self._rpc.http_req(http.post, path)
 
         return response.json()
@@ -309,7 +308,7 @@ class Client(object):
         :rtype: json of schedules
         """
         job_id = util.normalize_marathon_id_path(job_id)
-        path = '/v1/jobs{}/runs'.format(job_id)
+        path = f'/v1/jobs{job_id}/runs'
         response = self._rpc.http_req(http.get, path)
         return response.json()
 
@@ -325,7 +324,7 @@ class Client(object):
 
         job_id = util.normalize_marathon_id_path(job_id)
         run_id = util.normalize_marathon_id_path(run_id)
-        path = '/v1/jobs{}/runs{}'.format(job_id, run_id)
+        path = f'/v1/jobs{job_id}/runs{run_id}'
         response = self._rpc.http_req(http.get, path)
         return response.json()
 
@@ -344,7 +343,7 @@ class Client(object):
                 "job_id and run_id are required to kill a jobrun.")
         job_id = util.normalize_marathon_id_path(job_id)
         run_id = util.normalize_marathon_id_path(run_id)
-        path = '/v1/jobs{}/runs{}/actions/stop'.format(job_id, run_id)
+        path = f'/v1/jobs{job_id}/runs{run_id}/actions/stop'
         self._rpc.http_req(http.post, path)
 
     def get_queued_job_runs(self, job_id):
@@ -355,15 +354,15 @@ class Client(object):
         :rtype: list of dict
         """
         response = self._rpc.http_req(http.get, 'v1/queue')
-        if job_id is not None:
-            deployments = [
-                deployment for deployment in response.json()
+        return (
+            [
+                deployment
+                for deployment in response.json()
                 if job_id == deployment['jobId']
             ]
-        else:
-            deployments = response.json()
-
-        return deployments
+            if job_id is not None
+            else response.json()
+        )
 
     @staticmethod
     def _job_id_path_format(url_path_template, id_path):

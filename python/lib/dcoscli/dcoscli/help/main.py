@@ -26,7 +26,9 @@ def _main(argv):
     args = docopt.docopt(
         default_doc("help"),
         argv=argv,
-        version='dcos-help version {}'.format(dcoscli.version))
+        version=f'dcos-help version {dcoscli.version}',
+    )
+
 
     return cmds.execute(_cmds(), args)
 

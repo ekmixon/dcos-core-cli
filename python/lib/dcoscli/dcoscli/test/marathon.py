@@ -48,7 +48,7 @@ def list_apps(app_id=None):
         assert len(result) == 0
     else:
         assert len(result) == 1
-        assert result[0]['id'] == '/' + app_id
+        assert result[0]['id'] == f'/{app_id}'
 
     assert returncode == 0
     assert stderr == b''
@@ -78,8 +78,15 @@ def show_group(group_id, version=None):
     if version is None:
         cmd = ['dcos', 'marathon', 'group', 'show', group_id]
     else:
-        cmd = ['dcos', 'marathon', 'group', 'show',
-               '--group-version={}'.format(version), group_id]
+        cmd = [
+            'dcos',
+            'marathon',
+            'group',
+            'show',
+            f'--group-version={version}',
+            group_id,
+        ]
+
 
     returncode, stdout, stderr = exec_command(cmd)
 
@@ -87,7 +94,7 @@ def show_group(group_id, version=None):
 
     assert returncode == 0
     assert isinstance(result, dict)
-    assert result['id'] == '/' + group_id
+    assert result['id'] == f'/{group_id}'
     assert stderr == b''
 
     return result
@@ -123,8 +130,7 @@ def show_app(app_id, version=None):
     if version is None:
         cmd = ['dcos', 'marathon', 'app', 'show', app_id]
     else:
-        cmd = ['dcos', 'marathon', 'app', 'show',
-               '--app-version={}'.format(version), app_id]
+        cmd = ['dcos', 'marathon', 'app', 'show', f'--app-version={version}', app_id]
 
     returncode, stdout, stderr = exec_command(cmd)
 
@@ -133,7 +139,7 @@ def show_app(app_id, version=None):
 
     result = json.loads(stdout.decode('utf-8'))
     assert isinstance(result, dict)
-    assert result['id'] == '/' + app_id
+    assert result['id'] == f'/{app_id}'
 
     return result
 
@@ -358,8 +364,16 @@ def watch_deployment(deployment_id, count):
     """
 
     returncode, stdout, stderr = exec_command(
-        ['dcos', 'marathon', 'deployment', 'watch',
-            '--max-count={}'.format(count), deployment_id])
+        [
+            'dcos',
+            'marathon',
+            'deployment',
+            'watch',
+            f'--max-count={count}',
+            deployment_id,
+        ]
+    )
+
 
     assert returncode == 0
     assert stderr == b''
@@ -407,9 +421,8 @@ def watch_for_overdue(max_count=300):
         result = json.loads(stdout.decode('utf-8'))
         if len(result) > 0 and result[0]['delay']['overdue']:
             break
-        else:
-            count = count + 1
-            time.sleep(1)
+        count += 1
+        time.sleep(1)
 
         assert count < max_count, "Expired watch counter"
 

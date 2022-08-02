@@ -61,12 +61,12 @@ UNIVERSE_TEST_REPOS = collections.OrderedDict(
 def setup_universe_server():
     # Add test repos to Marathon and Cosmos
     for name, url in UNIVERSE_TEST_REPOS.items():
-        add_app('tests/data/' + name + '.json', False)
+        add_app(f'tests/data/{name}.json', False)
         watch_all_deployments()
 
         # wait for DNS records for the universe app to be propagated
         host = urlparse(url).netloc
-        for i in range(30):
+        for _ in range(30):
             for record in mesos.MesosDNSClient().hosts(host):
                 if record['host'] == host and record['ip'] != '':
                     break
@@ -79,8 +79,7 @@ def teardown_universe_server():
     # Remove the test Universe repos from Cosmos and Marathon
     for name, url in UNIVERSE_TEST_REPOS.items():
         assert_command(['dcos', 'package', 'repo', 'remove', name])
-        assert_command(
-            ['dcos', 'marathon', 'app', 'remove', '/' + name, '--force'])
+        assert_command(['dcos', 'marathon', 'app', 'remove', f'/{name}', '--force'])
 
     watch_all_deployments()
 

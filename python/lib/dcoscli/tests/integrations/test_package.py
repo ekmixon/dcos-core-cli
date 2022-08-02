@@ -98,8 +98,7 @@ def test_repo_remove_multi_and_empty():
     repos = ['Universe', 'Bootstrap Registry']
     repos.extend(UNIVERSE_TEST_REPOS.keys())
 
-    repos_remove_cmd = ['dcos', 'package', 'repo', 'remove']
-    repos_remove_cmd.extend(repos)
+    repos_remove_cmd = ['dcos', 'package', 'repo', 'remove', *repos]
     assert_command(repos_remove_cmd)
 
     returncode, stdout, stderr = exec_command(
@@ -173,7 +172,7 @@ def test_describe_options():
      'test_describe_helloworld_versions.json'),
 ])
 def test_describe(command_to_run, expected_output_file):
-    stdout = file_json('tests/data/package/json/' + expected_output_file)
+    stdout = file_json(f'tests/data/package/json/{expected_output_file}')
     expected_stdout = json.loads(stdout.decode('utf-8'))
 
     returncode, stdout, stderr = exec_command(
@@ -192,7 +191,7 @@ def test_describe(command_to_run, expected_output_file):
     ('helloworld --package-version=0.1.0', 'test_describe_helloworld.json'),
 ])
 def test_describe_cli(command_to_run, expected_output_file):
-    stdout = file_json('tests/data/package/json/' + expected_output_file)
+    stdout = file_json(f'tests/data/package/json/{expected_output_file}')
     expected_stdout = json.loads(stdout.decode('utf-8'))
 
     returncode, stdout, stderr = exec_command(
@@ -223,7 +222,7 @@ def test_bad_install():
         b'Error: Options JSON failed validation\n'
     )
     with util.temptext(b'{"nom": "hallo"}') as options:
-        args = ['--options='+options[1], '--yes']
+        args = [f'--options={options[1]}', '--yes']
         _install_bad_helloworld(args=args, stderr=stderr)
 
 
@@ -250,24 +249,22 @@ def test_bad_install_helloworld_msg():
         b'A sample post-installation message\n'
     )
 
-    with util.temptext(b'{"name": "/foo"}') as foo, \
-            util.temptext(b'{"name": "/foo/bar"}') as foobar:
+    with util.temptext(b'{"name": "/foo"}') as foo, util.temptext(b'{"name": "/foo/bar"}') as foobar:
 
-        _install_helloworld(['--yes', '--options='+foo[1]],
-                            stderr=stderr)
+        _install_helloworld(['--yes', f'--options={foo[1]}'], stderr=stderr)
 
         stderr = terms_conditions + b'Error: Object is not valid\n'
 
-        _install_helloworld(['--yes', '--options='+foobar[1]],
-                            stderr=stderr,
-                            returncode=1)
+        _install_helloworld(
+            ['--yes', f'--options={foobar[1]}'], stderr=stderr, returncode=1
+        )
+
         _uninstall_helloworld()
 
 
 @pytest.mark.skipif(sys.platform == 'win32', reason='DCOS_OSS-5624')
 def test_uninstall_cli_only_when_no_apps_remain():
-    with util.temptext(b'{"name": "/hello1"}') as opts_hello1, \
-            util.temptext(b'{"name": "/hello2"}') as opts_hello2:
+    with util.temptext(b'{"name": "/hello1"}') as opts_hello1, util.temptext(b'{"name": "/hello2"}') as opts_hello2:
         stderr = (
             b'This is a Community service. '
             b'Community services are not tested '
@@ -289,17 +286,9 @@ def test_uninstall_cli_only_when_no_apps_remain():
         uninstall_stderr = (
             b'Uninstalled package [helloworld] version [0.1.0]\n'
         )
-        with _package(name='helloworld',
-                      args=['--yes', '--options='+opts_hello1[1]],
-                      stderr=stderr,
-                      uninstall_app_id='/hello1',
-                      uninstall_stderr=uninstall_stderr):
+        with _package(name='helloworld', args=['--yes', f'--options={opts_hello1[1]}'], stderr=stderr, uninstall_app_id='/hello1', uninstall_stderr=uninstall_stderr):
 
-            with _package(name='helloworld',
-                          args=['--yes', '--options='+opts_hello2[1]],
-                          stderr=stderr,
-                          uninstall_app_id='/hello2',
-                          uninstall_stderr=uninstall_stderr):
+            with _package(name='helloworld', args=['--yes', f'--options={opts_hello2[1]}'], stderr=stderr, uninstall_app_id='/hello2', uninstall_stderr=uninstall_stderr):
 
                 subcommand.command_executables('http')
 
@@ -497,16 +486,17 @@ def test_uninstall_multiple_apps():
         b'A sample post-installation message\n'
     )
 
-    with util.temptext(b'{"name": "/helloworld-1"}') as hello1, \
-            util.temptext(b'{"name": "/helloworld-2"}') as hello2:
+    with util.temptext(b'{"name": "/helloworld-1"}') as hello1, util.temptext(b'{"name": "/helloworld-2"}') as hello2:
 
         _install_helloworld(
-            ['--yes', '--options='+hello1[1], '--app'],
-            stderr=stderr)
+            ['--yes', f'--options={hello1[1]}', '--app'], stderr=stderr
+        )
+
 
         _install_helloworld(
-            ['--yes', '--options='+hello2[1], '--app'],
-            stderr=stderr)
+            ['--yes', f'--options={hello2[1]}', '--app'], stderr=stderr
+        )
+
 
         stderr = (b"Multiple apps named [helloworld] are installed: "
                   b"[/helloworld-1, /helloworld-2].\n"
@@ -974,7 +964,7 @@ def _package(name,
             if uninstall_confirmation:
                 command.append('--yes')
             if uninstall_app_id:
-                command.append('--app-id='+uninstall_app_id)
+                command.append(f'--app-id={uninstall_app_id}')
             assert_command(command, stderr=uninstall_stderr)
             watch_all_deployments()
 

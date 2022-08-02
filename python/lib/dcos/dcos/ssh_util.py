@@ -29,8 +29,7 @@ def get_ssh_user(ssh_config_file, user):
     if user:
         return user
 
-    dcos_config_ssh_user = config.get_config_val("core.ssh_user")
-    if dcos_config_ssh_user:
+    if dcos_config_ssh_user := config.get_config_val("core.ssh_user"):
         return dcos_config_ssh_user
 
     return constants.DEFAULT_SSH_USER
@@ -48,10 +47,7 @@ def get_ssh_user_options(ssh_config_file, user):
     """
 
     user = get_ssh_user(ssh_config_file, user)
-    if not user:
-        return ''
-
-    return '-l {}'.format(user)
+    return f'-l {user}' if user else ''
 
 
 def get_ssh_proxy_options(ssh_options, user_options='',
@@ -71,17 +67,17 @@ def get_ssh_proxy_options(ssh_options, user_options='',
     """
 
     if not proxy_ip:
-        dcos_config_proxy_ip = config.get_config_val("core.ssh_proxy_ip")
-        if dcos_config_proxy_ip:
+        if dcos_config_proxy_ip := config.get_config_val("core.ssh_proxy_ip"):
             proxy_ip = dcos_config_proxy_ip
         elif master_proxy:
             dcos_client = mesos.DCOSClient()
-            master_public_ip = dcos_client.metadata().get('PUBLIC_IPV4')
-            if not master_public_ip:
-                raise DCOSException(("Cannot use --master-proxy.  Failed to "
-                                     "find 'PUBLIC_IPV4' at {}").format(
-                                         dcos_client.get_dcos_url('metadata')))
-            proxy_ip = master_public_ip
+            if master_public_ip := dcos_client.metadata().get('PUBLIC_IPV4'):
+                proxy_ip = master_public_ip
+
+            else:
+                raise DCOSException(
+                    f"Cannot use --master-proxy.  Failed to find 'PUBLIC_IPV4' at {dcos_client.get_dcos_url('metadata')}"
+                )
 
     if not proxy_ip:
         return ''
@@ -95,9 +91,9 @@ def get_ssh_proxy_options(ssh_options, user_options='',
             "Please run `ssh-agent`, then add your private key with "
             "`ssh-add`.")
 
-    proxy_options = '-A -t {0} {1} {2} -- ssh'.format(
-        ssh_options, user_options, proxy_ip)
-    return proxy_options
+    return '-A -t {0} {1} {2} -- ssh'.format(
+        ssh_options, user_options, proxy_ip
+    )
 
 
 def get_ssh_options(config_file, options=[], user=None,
@@ -118,10 +114,10 @@ def get_ssh_options(config_file, options=[], user=None,
     :rtype: str
     """
 
-    ssh_options = ' '.join('-o {}'.format(opt) for opt in options)
+    ssh_options = ' '.join(f'-o {opt}' for opt in options)
 
     if config_file:
-        ssh_options += ' -F {}'.format(config_file)
+        ssh_options += f' -F {config_file}'
 
     user_options = get_ssh_user_options(config_file, user)
     proxy_options = get_ssh_proxy_options(

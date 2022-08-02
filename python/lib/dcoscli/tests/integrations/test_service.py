@@ -40,12 +40,14 @@ def test_service_inactive_and_completed():
     package_install('kafka', True, ['--app'])
     wait_for_service('kafka')
 
-    # get kafka's framework ID
-    kafka_id = None
-    for service in get_services():
-        if service['name'] == 'kafka':
-            kafka_id = service['id']
-            break
+    kafka_id = next(
+        (
+            service['id']
+            for service in get_services()
+            if service['name'] == 'kafka'
+        ),
+        None,
+    )
 
     assert kafka_id is not None
 
@@ -59,8 +61,7 @@ def test_service_inactive_and_completed():
 
     time.sleep(5)
     # assert kafka is not listed
-    assert not any(
-        service['name'] == 'kafka' for service in get_services())
+    assert all(service['name'] != 'kafka' for service in get_services())
 
     # assert kafka is inactive
     inactive = get_services(args=['--inactive'])
@@ -71,8 +72,7 @@ def test_service_inactive_and_completed():
     delete_zk_node('kafka-mesos')
 
     # assert kafka is not listed
-    assert not any(
-        service['name'] == 'kafka' for service in get_services())
+    assert all(service['name'] != 'kafka' for service in get_services())
 
     # assert kafka is completed
     services = get_services(args=['--completed'])
@@ -172,8 +172,8 @@ def test_log_follow():
     stdout = proc.stdout.read()
     stderr = proc.stderr.read()
 
-    print('STDOUT: {}'.format(stdout))
-    print('STDERR: {}'.format(stderr))
+    print(f'STDOUT: {stdout}')
+    print(f'STDERR: {stderr}')
     assert len(stdout.decode('utf-8').split('\n')) > 3
 
     assert_lines(['dcos', 'service', 'log', 'chronos', '--lines=4'], 4)

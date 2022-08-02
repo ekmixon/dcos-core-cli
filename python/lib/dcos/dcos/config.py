@@ -68,8 +68,7 @@ def get_attached_cluster_path():
         name = get_config_val("cluster.name",
                               load_from_path(
                                   os.path.join(cluster_path, "dcos.toml")))
-        if cluster_envvar is not None \
-           and (cluster_envvar == c or cluster_envvar == name):
+        if cluster_envvar is not None and cluster_envvar in [c, name]:
             return cluster_path
         if os.path.exists(os.path.join(
                 cluster_path, constants.DCOS_CLUSTER_ATTACHED_FILE)):
@@ -107,11 +106,10 @@ def get_config_path():
 
     if uses_deprecated_config():
         return get_global_config_path()
-    else:
-        cluster_path = get_attached_cluster_path()
-        if not cluster_path:
-            raise DCOSException("No cluster is currently attached.")
+    if cluster_path := get_attached_cluster_path():
         return os.path.join(cluster_path, "dcos.toml")
+    else:
+        raise DCOSException("No cluster is currently attached.")
 
 
 def get_config_dir_path():
@@ -122,7 +120,7 @@ def get_config_dir_path():
 
     config_dir = os.environ.get(constants.DCOS_DIR_ENV) or \
         os.path.join("~", constants.DCOS_DIR)
-    logger.debug("Config directory: {}".format(config_dir))
+    logger.debug(f"Config directory: {config_dir}")
 
     try:
         config_dir_path = os.path.expanduser(config_dir)
@@ -185,13 +183,9 @@ def get_config_val_envvar(name, config=None):
         if subkey.startswith("DCOS") and os.environ.get(subkey):
             env_var = subkey
         else:
-            env_var = "DCOS_{}".format(subkey)
-    elif section == "CLUSTER" and subkey == "NAME":
-        # Ignore DCOS_CLUSTER_NAME, this environment variable is confusing.
-        # cf. https://jira.mesosphere.com/browse/DCOS-21098
-        pass
-    else:
-        env_var = "DCOS_{}_{}".format(section, subkey)
+            env_var = f"DCOS_{subkey}"
+    elif section != "CLUSTER" or subkey != "NAME":
+        env_var = f"DCOS_{section}_{subkey}"
 
     return os.environ.get(env_var) or config.get(name), env_var or None
 
@@ -273,7 +267,7 @@ def set_val(name, value, config_path=None):
 
     save(toml_config, config_path)
 
-    msg = "[{}]: ".format(name)
+    msg = f"[{name}]: "
     if name == "core.dcos_acs_token":
         if not value_exists:
             msg += "set"
@@ -282,11 +276,11 @@ def set_val(name, value, config_path=None):
         else:
             msg += "changed"
     elif not value_exists:
-        msg += "set to '{}'".format(new_value)
+        msg += f"set to '{new_value}'"
     elif old_value == new_value:
-        msg += "already set to '{}'".format(old_value)
+        msg += f"already set to '{old_value}'"
     else:
-        msg += "changed from '{}' to '{}'".format(old_value, new_value)
+        msg += f"changed from '{old_value}' to '{new_value}'"
 
     if token_unset:
         msg += "\n[core.dcos_acs_token]: removed"
@@ -312,8 +306,7 @@ def load_from_path(path, mutable=False):
         try:
             toml_obj = toml.loads(config_file.read())
         except Exception as e:
-            raise DCOSException(
-                'Error parsing config file at [{}]: {}'.format(path, e))
+            raise DCOSException(f'Error parsing config file at [{path}]: {e}')
         return (MutableToml if mutable else Toml)(toml_obj)
 
 
@@ -371,7 +364,7 @@ def unset(name):
     elif isinstance(value, Mapping):
         raise DCOSException(_generate_choice_msg(name, value))
     else:
-        msg = "Removed [{}]".format(name)
+        msg = f"Removed [{name}]"
         # dcos_acs_token is coupled to a specific dcos_url
         if name == "core.dcos_url":
             unset_token = bool(toml_config.pop("core.dcos_acs_token", None))
@@ -394,7 +387,7 @@ def _generate_choice_msg(name, value):
     message = ("Property {!r} doesn't fully specify a value - "
                "possible properties are:").format(name)
     for key, _ in sorted(value.property_items()):
-        message += '\n{}.{}'.format(name, key)
+        message += f'\n{name}.{key}'
 
     return message
 
@@ -413,13 +406,12 @@ def _iterator(parent, dictionary):
 
         new_key = key
         if parent is not None:
-            new_key = "{}.{}".format(parent, key)
+            new_key = f"{parent}.{key}"
 
         if not isinstance(value, Mapping):
             yield (new_key, value)
         else:
-            for x in _iterator(new_key, value):
-                yield x
+            yield from _iterator(new_key, value)
 
 
 def split_key(name):
@@ -454,9 +446,11 @@ def get_config_schema(command):
     if command == "core" or command in default_subcommands():
         try:
             schema = pkg_resources.resource_string(
-                    'dcos', 'data/config-schema/{}.json'.format(command))
+                'dcos', f'data/config-schema/{command}.json'
+            )
+
         except FileNotFoundError:
-            msg = "Subcommand '{}' is not configurable.".format(command)
+            msg = f"Subcommand '{command}' is not configurable."
             raise DCOSException(msg)
 
         return json.loads(schema.decode('utf-8'))
@@ -464,7 +458,7 @@ def get_config_schema(command):
     try:
         executable = command_executables(command)
     except DCOSException as e:
-        msg = "Config section '{}' is invalid: {}".format(command, e)
+        msg = f"Config section '{command}' is invalid: {e}"
         raise DCOSException(msg)
 
     return config_schema(executable, command)
@@ -485,8 +479,7 @@ def get_property_description(section, subkey):
     if property_info is not None:
         return property_info.get("description")
     else:
-        raise DCOSException(
-            "No schema found found for {}.{}".format(section, subkey))
+        raise DCOSException(f"No schema found found for {section}.{subkey}")
 
 
 def check_config(toml_config_pre, toml_config_post, section):
@@ -515,7 +508,7 @@ def check_config(toml_config_pre, toml_config_post, section):
             raise DCOSException(util.list_to_err(errors_post))
 
         def _errs(errs):
-            return set([e.split('\n')[0] for e in errs])
+            return {e.split('\n')[0] for e in errs}
 
         diff_errors = _errs(errors_post) - _errs(errors_pre)
         if len(diff_errors) != 0:
@@ -535,7 +528,7 @@ def generate_choice_msg(name, value):
     message = ("Property {!r} doesn't fully specify a value - "
                "possible properties are:").format(name)
     for key, _ in sorted(value.property_items()):
-        message += '\n{}.{}'.format(name, key)
+        message += f'\n{name}.{key}'
 
     return message
 
@@ -582,10 +575,7 @@ class Toml(Mapping):
         """
 
         toml_config = _get_path(self._dictionary, path)
-        if isinstance(toml_config, Mapping):
-            return Toml(toml_config)
-        else:
-            return toml_config
+        return Toml(toml_config) if isinstance(toml_config, Mapping) else toml_config
 
     def __iter__(self):
         """

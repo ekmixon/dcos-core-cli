@@ -49,25 +49,22 @@ def exec_command(cmd, env=None, stdin=None, timeout=None):
         # https://docs.python.org/3.5/library/subprocess.html#subprocess.Popen.communicate
         process.kill()
         stdout, stderr = process.communicate()
-        print('STDOUT: {}'.format(_truncate(stdout.decode('utf-8'))))
-        print('STDERR: {}'.format(_truncate(stderr.decode('utf-8'))))
+        print(f"STDOUT: {_truncate(stdout.decode('utf-8'))}")
+        print(f"STDERR: {_truncate(stderr.decode('utf-8'))}")
         raise
 
     # This is needed to get rid of '\r' from Windows's lines endings.
     stdout, stderr = [stream.replace(b'\r', b'') for stream in streams]
 
     # We should always print the stdout and stderr
-    print('STDOUT: {}'.format(_truncate(stdout.decode('utf-8'))))
-    print('STDERR: {}'.format(_truncate(stderr.decode('utf-8'))))
+    print(f"STDOUT: {_truncate(stdout.decode('utf-8'))}")
+    print(f"STDERR: {_truncate(stderr.decode('utf-8'))}")
 
     return (process.returncode, stdout, stderr)
 
 
 def _truncate(s, length=8000):
-    if len(s) > length:
-        return s[:length-3] + '...'
-    else:
-        return s
+    return f'{s[:length-3]}...' if len(s) > length else s
 
 
 def assert_command(
@@ -121,8 +118,9 @@ def delete_zk_node(znode):
 
     dcos_url = config.get_config_val('core.dcos_url')
     znode_url = urllib.parse.urljoin(
-        dcos_url,
-        '/exhibitor/exhibitor/v1/explorer/znode/{}'.format(znode))
+        dcos_url, f'/exhibitor/exhibitor/v1/explorer/znode/{znode}'
+    )
+
     http.delete(znode_url)
 
 
@@ -194,7 +192,7 @@ def fetch_valid_json(cmd):
     try:
         return json.loads(stdout.decode('utf-8'))
     except json.JSONDecodeError:
-        error_text = 'Command "{}" returned invalid JSON'.format(' '.join(cmd))
+        error_text = f"""Command "{' '.join(cmd)}" returned invalid JSON"""
         raise Exception(error_text)
 
 
@@ -318,7 +316,7 @@ def ssh_output(cmd):
     :rtype: (str, str, int)
     """
 
-    print('SSH COMMAND: {}'.format(cmd))
+    print(f'SSH COMMAND: {cmd}')
 
     # ssh must run with stdin attached to a tty
     proc, master = popen_tty(cmd)
@@ -330,16 +328,13 @@ def ssh_output(cmd):
     returncode = proc.returncode
 
     # kill the whole process group
-    try:
+    with contextlib.suppress(OSError):
         os.killpg(os.getpgid(proc.pid), 15)
-    except OSError:
-        pass
-
     os.close(master)
     stdout, stderr = proc.communicate()
 
-    print('SSH STDOUT: {}'.format(stdout.decode('utf-8')))
-    print('SSH STDERR: {}'.format(stderr.decode('utf-8')))
+    print(f"SSH STDOUT: {stdout.decode('utf-8')}")
+    print(f"SSH STDERR: {stderr.decode('utf-8')}")
 
     return stdout, stderr, returncode
 
@@ -400,4 +395,4 @@ def skip_if_env_missing(env_vars):
 
     for env_var in env_vars:
         if env_var not in os.environ:
-            pytest.skip(env_var + ' is not set.')
+            pytest.skip(f'{env_var} is not set.')

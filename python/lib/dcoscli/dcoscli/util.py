@@ -78,21 +78,20 @@ def confirm(prompt, yes):
 
     if yes:
         return True
-    else:
-        count = 0
-        while count < 3:
-            sys.stdout.write('{} [yes/no] '.format(prompt))
-            sys.stdout.flush()
-            response = _read_response().lower()
-            if response == 'yes' or response == 'y':
-                return True
-            elif response == 'no' or response == 'n':
-                return False
-            else:
-                msg = "'{}' is not a valid response.".format(response)
-                emitter.publish(msg)
-                count += 1
-        return False
+    count = 0
+    while count < 3:
+        sys.stdout.write(f'{prompt} [yes/no] ')
+        sys.stdout.flush()
+        response = _read_response().lower()
+        if response in ['yes', 'y']:
+            return True
+        elif response in ['no', 'n']:
+            return False
+        else:
+            msg = f"'{response}' is not a valid response."
+            emitter.publish(msg)
+            count += 1
+    return False
 
 
 def confirm_text(prompt, confirmation_text):
@@ -105,20 +104,14 @@ def confirm_text(prompt, confirmation_text):
     :rtype: bool
     """
 
-    count = 0
-    while count < 3:
-        sys.stdout.write('{}: '.format(prompt))
+    for _ in range(3):
+        sys.stdout.write(f'{prompt}: ')
         sys.stdout.flush()
         response = _read_response()
         if response == confirmation_text:
             return True
-        else:
-            msg = "Expected '{}'. You supplied '{}'.".format(
-                confirmation_text,
-                response
-            )
-            emitter.publish(msg)
-            count += 1
+        msg = f"Expected '{confirmation_text}'. You supplied '{response}'."
+        emitter.publish(msg)
     return False
 
 
@@ -150,10 +143,10 @@ def prompt_with_choices(choices, descriptions=[], msg='Please choose:'):
 
     emitter.publish(msg)
     for i, desc in enumerate(descriptions):
-        emitter.publish('{}) {}'.format(i+1, desc))
+        emitter.publish(f'{i + 1}) {desc}')
 
     # Write to stdout without new line.
-    msg = '({}-{}): '.format(1, len(choices))
+    msg = f'(1-{len(choices)}): '
     emitter.publish(msg, end='')
 
     try:

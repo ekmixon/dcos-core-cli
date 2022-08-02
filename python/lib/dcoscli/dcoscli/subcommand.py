@@ -39,7 +39,7 @@ def default_doc(command):
     :rtype: str
     """
 
-    resource = "data/help/{}.txt".format(command)
+    resource = f"data/help/{command}.txt"
     return pkg_resources.resource_string(
         'dcoscli',
         resource).decode('utf-8')

@@ -323,10 +323,10 @@ def test_download_sandbox():
 
         assert stderr == b''
         assert returncode == 0
-        assert os.path.exists(tmp + '/test')
-        assert os.path.exists(tmp + '/test/test1')
+        assert os.path.exists(f'{tmp}/test')
+        assert os.path.exists(f'{tmp}/test/test1')
 
-        file = open(tmp + '/test/test1', 'r')
+        file = open(f'{tmp}/test/test1', 'r')
         content = file.read(4)
         assert content == 'test'
 
@@ -336,14 +336,14 @@ def test_download_sandbox():
 @pytest.mark.skipif(sys.platform == 'win32', reason='Test failing on windows')
 def test_download_sandbox_to_target():
     with tempdir() as tmp:
-        targetdir = '--target-dir=' + tmp + '/sandbox'
+        targetdir = f'--target-dir={tmp}/sandbox'
         task_id = _get_task_id('download-app')
         returncode, stdout, stderr = exec_command(
             ['dcos', 'task', 'download', task_id, targetdir])
 
         assert stderr == b''
         assert returncode == 0
-        assert os.path.exists(tmp + '/sandbox')
+        assert os.path.exists(f'{tmp}/sandbox')
 
 
 @pytest.mark.skipif(sys.platform == 'win32', reason='Test failing on windows')
@@ -358,9 +358,9 @@ def test_download_single_file():
 
         assert stderr == b''
         assert returncode == 0
-        assert os.path.exists(tmp + '/test1')
+        assert os.path.exists(f'{tmp}/test1')
 
-        file = open(tmp + '/test1', 'r')
+        file = open(f'{tmp}/test1', 'r')
         content = file.read(4)
         assert content == 'test'
 
@@ -445,7 +445,7 @@ def test_exec_exit_status():
 def test_attach():
     task_id = _get_task_id('cat-app')
 
-    proc, master = popen_tty('dcos task attach ' + task_id)
+    proc, master = popen_tty(f'dcos task attach {task_id}')
     master = os.fdopen(master, 'w')
     tty.setraw(master, when=termios.TCSANOW)
 
@@ -468,7 +468,7 @@ def test_attach():
 def test_attach_partial_escape_sequence():
     task_id = _get_task_id('cat-app')
 
-    proc, master = popen_tty('dcos task attach ' + task_id)
+    proc, master = popen_tty(f'dcos task attach {task_id}')
     master = os.fdopen(master, 'w')
     tty.setraw(master, when=termios.TCSANOW)
 
@@ -496,7 +496,7 @@ def test_attach_custom_escape_sequence():
     env = os.environ.copy()
     env["DCOS_TASK_ESCAPE_SEQUENCE"] = "ctrl-p,ctrl-r,ctrl-s"
 
-    proc, master = popen_tty('dcos task attach ' + task_id, env=env)
+    proc, master = popen_tty(f'dcos task attach {task_id}', env=env)
     master = os.fdopen(master, 'w')
     tty.setraw(master, when=termios.TCSANOW)
 
@@ -512,7 +512,7 @@ def test_attach_custom_escape_sequence():
 def test_attach_no_tty():
     task_id = _get_task_id('ls-app')
 
-    proc, master = popen_tty('dcos task attach ' + task_id)
+    proc, master = popen_tty(f'dcos task attach {task_id}')
     master = os.fdopen(master, 'w')
     tty.setraw(master, when=termios.TCSANOW)
 
@@ -550,8 +550,7 @@ def _get_task_id(app_id):
     assert returncode == 0
     tasks = json.loads(stdout.decode('utf-8'))
     assert len(tasks) == 1
-    task_id = tasks[0]['id']
-    return task_id
+    return tasks[0]['id']
 
 
 def _read_lines(raw_io):

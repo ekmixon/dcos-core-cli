@@ -86,15 +86,14 @@ def package_completions(plugin_path: str):
 def package_binaries(plugin_path: str, platform: str, python_bin_dir: str):
     bin_extension = ".exe" if platform == "windows" else ""
 
-    go_bin = path.join(plugin_path, "..", "dcos{}".format(bin_extension))
-    python_bin = path.join(python_bin_dir, "dcos{}".format(bin_extension))
+    go_bin = path.join(plugin_path, "..", f"dcos{bin_extension}")
+    python_bin = path.join(python_bin_dir, f"dcos{bin_extension}")
 
     dest = path.join(plugin_path, "bin")
     dir_util.mkpath(dest)
 
-    file_util.copy_file(go_bin, path.join(dest, "dcos{}".format(bin_extension)))
-    file_util.copy_file(python_bin, path.join(
-        dest, "dcos_py{}".format(bin_extension)))
+    file_util.copy_file(go_bin, path.join(dest, f"dcos{bin_extension}"))
+    file_util.copy_file(python_bin, path.join(dest, f"dcos_py{bin_extension}"))
 
 
 def package_plugin(build_path: str,

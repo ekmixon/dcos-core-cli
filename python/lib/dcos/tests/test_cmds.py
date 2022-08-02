@@ -94,6 +94,6 @@ def test_missing_arg(args):
 
 def function(*args):
     for i in range(len(args)):
-        assert args[i] == 'arg-{}'.format(i)
+        assert args[i] == f'arg-{i}'
 
     return 1

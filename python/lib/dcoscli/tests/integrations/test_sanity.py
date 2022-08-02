@@ -51,7 +51,7 @@ def test_update_group():
     group_app = 'tests/data/marathon/groups/good.json'
     with group(group_app, 'test-group'):
         newapp = json.dumps([{"id": "appadded", "cmd": "sleep 0"}])
-        appjson = "apps={}".format(newapp)
+        appjson = f"apps={newapp}"
         returncode, stdout, stderr = exec_command(
             ['dcos', 'marathon', 'group', 'update', 'test-group/sleep',
                 appjson])
@@ -84,5 +84,6 @@ def test_install():
         wait_for_service('chronos')
 
     services = get_services(args=['--inactive'])
-    assert len([service for service in services
-                if service['name'] == 'chronos']) == 0
+    assert not [
+        service for service in services if service['name'] == 'chronos'
+    ]

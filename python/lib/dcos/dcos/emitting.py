@@ -46,10 +46,7 @@ class FlatEmitter(Emitter):
     """
 
     def __init__(self, handler=None):
-        if handler is None:
-            self._handler = DEFAULT_HANDLER
-        else:
-            self._handler = handler
+        self._handler = DEFAULT_HANDLER if handler is None else handler
 
     def publish(self, event, end="\n"):
         """Publishes an event.
@@ -118,8 +115,7 @@ def publish_table(emitter, objs, table_fn, json_):
         emitter.publish(objs)
     else:
         table = table_fn(objs)
-        output = six.text_type(table)
-        if output:
+        if output := six.text_type(table):
             emitter.publish(output)
 
 

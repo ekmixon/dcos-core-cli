@@ -34,7 +34,9 @@ def _main(argv):
     args = docopt.docopt(
         default_doc("marathon"),
         argv=argv,
-        version='dcos-marathon version {}'.format(dcoscli.version))
+        version=f'dcos-marathon version {dcoscli.version}',
+    )
+
 
     return cmds.execute(_cmds(), args)
 
@@ -304,13 +306,12 @@ class ResourceReader(object):
                 try:
                     http.silence_requests_warnings()
                     req = http.get(name)
-                    if req.status_code == 200:
-                        data = b''
-                        for chunk in req.iter_content(1024):
-                            data += chunk
-                        return util.load_jsons(data.decode('utf-8'))
-                    else:
+                    if req.status_code != 200:
                         raise Exception
+                    data = b''
+                    for chunk in req.iter_content(1024):
+                        data += chunk
+                    return util.load_jsons(data.decode('utf-8'))
                 except Exception:
                     logger.exception('Cannot read from resource %s', name)
                     raise DCOSException(
@@ -333,7 +334,7 @@ class ResourceReader(object):
 
         if len(properties) == 0:
             example =\
-                "E.g. dcos marathon app update your-app-id < app_update.json"
+                    "E.g. dcos marathon app update your-app-id < app_update.json"
             ResourceReader._assert_no_tty(example)
 
             return util.load_jsons(sys.stdin.read())
@@ -400,8 +401,7 @@ class MarathonSubcommand(object):
             emitter.publish(plugins)
         else:
             table = tables.plugins_table(plugins.get('plugins'))
-            output = six.text_type(table)
-            if output:
+            if output := six.text_type(table):
                 emitter.publish(output)
         return 0
 
@@ -426,11 +426,11 @@ class MarathonSubcommand(object):
         except DCOSException as e:
             logger.exception(e)
         else:
-            message = "Application '{}' already exists".format(app_id)
+            message = f"Application '{app_id}' already exists"
             raise DCOSException(message)
 
         deployment = client.add_app(application_resource)
-        emitter.publish('Created deployment {}'.format(deployment))
+        emitter.publish(f'Created deployment {deployment}')
 
         return 0
 
@@ -455,8 +455,7 @@ class MarathonSubcommand(object):
             queued_apps = client.get_queued_apps()
             _enhance_row_with_overdue_information(apps, queued_apps)
             table = tables.app_table(apps, deployments)
-            output = six.text_type(table)
-            if output:
+            if output := six.text_type(table):
                 emitter.publish(output)
 
         return 0
@@ -498,10 +497,10 @@ class MarathonSubcommand(object):
         except DCOSException as e:
             logger.exception(e)
         else:
-            raise DCOSException("Group '{}' already exists".format(group_id))
+            raise DCOSException(f"Group '{group_id}' already exists")
 
         deployment = client.create_group(group_resource)
-        emitter.publish('Created deployment {}'.format(deployment))
+        emitter.publish(f'Created deployment {deployment}')
 
         return 0
 
@@ -590,10 +589,10 @@ class MarathonSubcommand(object):
         client.get_group(group_id)
 
         resource = self._resource_reader.\
-            get_resource_from_properties(properties)
+                get_resource_from_properties(properties)
         deployment = client.update_group(group_id, resource, force)
 
-        emitter.publish('Created deployment {}'.format(deployment))
+        emitter.publish(f'Created deployment {deployment}')
         return 0
 
     def start(self, app_id, instances, force):
@@ -639,7 +638,7 @@ class MarathonSubcommand(object):
 
         deployment = client.update_app(app_id, app_json, force)
 
-        emitter.publish('Created deployment {}'.format(deployment))
+        emitter.publish(f'Created deployment {deployment}')
 
         return 0
 
@@ -670,7 +669,7 @@ class MarathonSubcommand(object):
 
         deployment = client.update_app(app_id, app_json, force)
 
-        emitter.publish('Created deployment {}'.format(deployment))
+        emitter.publish(f'Created deployment {deployment}')
 
     def update(self, app_id, properties, force):
         """
@@ -690,10 +689,10 @@ class MarathonSubcommand(object):
         client.get_app(app_id)
 
         resource = self._resource_reader.\
-            get_resource_from_properties(properties)
+                get_resource_from_properties(properties)
         deployment = client.update_app(app_id, resource, force)
 
-        emitter.publish('Created deployment {}'.format(deployment))
+        emitter.publish(f'Created deployment {deployment}')
         return 0
 
     def group_scale(self, group_id, scale_factor, force):
@@ -711,7 +710,7 @@ class MarathonSubcommand(object):
         client = self._create_marathon_client()
         scale_factor = util.parse_float(scale_factor)
         deployment = client.scale_group(group_id, scale_factor, force)
-        emitter.publish('Created deployment {}'.format(deployment))
+        emitter.publish(f'Created deployment {deployment}')
         return 0
 
     def delete_leader(self):
@@ -753,11 +752,7 @@ class MarathonSubcommand(object):
         :returns: str response
         :rtype: str
         """
-        if once:
-            count = 1
-        else:
-            count = len(mesos.MesosDNSClient().masters())
-
+        count = 1 if once else len(mesos.MesosDNSClient().masters())
         consecutive_count = 0
         client = self._create_marathon_client()
         timeout = 10
@@ -767,7 +762,7 @@ class MarathonSubcommand(object):
             nonlocal consecutive_count
             try:
                 response = client.ping()
-                consecutive_count = consecutive_count + 1
+                consecutive_count += 1
             except Exception:
                 consecutive_count = 0
 
@@ -813,7 +808,7 @@ class MarathonSubcommand(object):
 
         payload = client.restart_app(app_id, force)
 
-        message = 'Created deployment {}'.format(payload['deploymentId'])
+        message = f"Created deployment {payload['deploymentId']}"
         emitter.publish(message)
         return 0
 
@@ -834,15 +829,14 @@ class MarathonSubcommand(object):
         # If scale is provided, the API return a "deploymentResult"
         # https://github.com/mesosphere/marathon/blob/50366c8/src/main/scala/mesosphere/marathon/api/RestResource.scala#L34-L36
         if scale:
-            emitter.publish("Started deployment: {}".format(payload))
-        else:
-            if 'tasks' in payload:
-                emitter.publish('Killed tasks: {}'.format(payload['tasks']))
-                if len(payload['tasks']) == 0:
-                    return 1
-            else:
-                emitter.publish('Killed tasks: []')
+            emitter.publish(f"Started deployment: {payload}")
+        elif 'tasks' in payload:
+            emitter.publish(f"Killed tasks: {payload['tasks']}")
+            if len(payload['tasks']) == 0:
                 return 1
+        else:
+            emitter.publish('Killed tasks: []')
+            return 1
         return 0
 
     def version_list(self, app_id, max_count):
@@ -901,7 +895,7 @@ class MarathonSubcommand(object):
         if not deployments and not json_:
             msg = "There are no deployments"
             if app_id:
-                msg += " for '{}'".format(app_id)
+                msg += f" for '{app_id}'"
             raise DCOSException(msg)
 
         if quiet_:
@@ -968,9 +962,8 @@ class MarathonSubcommand(object):
                 return 0
             if util.is_windows_platform():
                 os.system('cls')
-            else:
-                if 'TERM' in os.environ:
-                    os.system('clear')
+            elif 'TERM' in os.environ:
+                os.system('clear')
             emitter.publish('Deployment update time: '
                             '{} \n'.format(time.strftime("%Y-%m-%d %H:%M:%S",
                                                          time.gmtime())))
@@ -1016,7 +1009,7 @@ class MarathonSubcommand(object):
         task = client.stop_task(task_id, wipe)
 
         if task is None:
-            raise DCOSException("Task '{}' does not exist".format(task_id))
+            raise DCOSException(f"Task '{task_id}' does not exist")
 
         emitter.publish(task)
         return 0
@@ -1076,7 +1069,7 @@ class MarathonSubcommand(object):
         task = client.get_task(task_id)
 
         if task is None:
-            raise DCOSException("Task '{}' does not exist".format(task_id))
+            raise DCOSException(f"Task '{task_id}' does not exist")
 
         emitter.publish(task)
         return 0
@@ -1097,7 +1090,7 @@ class MarathonSubcommand(object):
             self._check_service_id_length(pod_json['id'])
 
         deployment = marathon_client.add_pod(pod_json)
-        emitter.publish('Created deployment {}'.format(deployment))
+        emitter.publish(f'Created deployment {deployment}')
         return 0
 
     def pod_remove(self, pod_id, force):
@@ -1174,7 +1167,7 @@ class MarathonSubcommand(object):
         deployment_id = marathon_client.update_pod(
             pod_id, pod_json=resource, force=force)
 
-        emitter.publish('Created deployment {}'.format(deployment_id))
+        emitter.publish(f'Created deployment {deployment_id}')
         return 0
 
     def pod_kill(self, pod_id, instance_ids):
@@ -1222,15 +1215,12 @@ class MarathonSubcommand(object):
         """
 
         client = self._create_marathon_client()
-        queued_app = client.get_queued_app(app_id)
-
-        if queued_app:
+        if queued_app := client.get_queued_app(app_id):
             emitting.publish_table(
                 emitter, queued_app,
                 tables.queued_app_details_table, json_)
         else:
-            raise DCOSException("Couldn't find app {} in Marathon queue"
-                                .format(app_id))
+            raise DCOSException(f"Couldn't find app {app_id} in Marathon queue")
 
         return 0
 
@@ -1245,19 +1235,15 @@ class MarathonSubcommand(object):
         """
 
         client = self._create_marathon_client()
-        queued_app = client.get_queued_app(app_id)
-
-        if queued_app:
-            if queued_app.get('processedOffersSummary'):
-                emitting.publish_table(
-                    emitter, queued_app,
-                    tables.queued_app_table, json_)
-            else:
-                msg = "This command is not supported on your cluster"
-                raise DCOSException(msg)
-        else:
+        if not (queued_app := client.get_queued_app(app_id)):
             raise DCOSException("No apps found in Marathon queue")
 
+        if queued_app.get('processedOffersSummary'):
+            emitting.publish_table(
+                emitter, queued_app,
+                tables.queued_app_table, json_)
+        else:
+            raise DCOSException("This command is not supported on your cluster")
         return 0
 
     @staticmethod
@@ -1285,7 +1271,7 @@ class MarathonSubcommand(object):
         :rtype: None
         """
 
-        if not len(service_id) < 55:
+        if len(service_id) >= 55:
             msg = ('Service IDs must be less than 55 characters in order'
                    ' to have SRV records generated correctly.')
             emitter.publish(msg.format(service_id))
@@ -1335,22 +1321,19 @@ def _calculate_version(client, app_id, version):
         logger.exception('Unable to parse version %s', version)
         return version
     else:
-        if value < 0:
-            value = -1 * value
-            # We have a negative value let's ask Marathon for the last
-            # abs(value)
-            versions = client.get_app_versions(app_id, value + 1)
+        if value >= 0:
+            raise DCOSException(f'Relative versions must be negative: {version}')
+        value = -1 * value
+        # We have a negative value let's ask Marathon for the last
+        # abs(value)
+        versions = client.get_app_versions(app_id, value + 1)
 
-            if len(versions) <= value:
-                # We don't have enough versions. Return an error.
-                msg = "Application {!r} only has {!r} version(s)."
-                raise DCOSException(msg.format(app_id, len(versions), value))
-            else:
-                return versions[value]
+        if len(versions) > value:
+            return versions[value]
 
-        else:
-            raise DCOSException(
-                'Relative versions must be negative: {}'.format(version))
+        # We don't have enough versions. Return an error.
+        msg = "Application {!r} only has {!r} version(s)."
+        raise DCOSException(msg.format(app_id, len(versions), value))
 
 
 def _cli_config_schema():

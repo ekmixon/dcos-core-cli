@@ -360,28 +360,32 @@ def test_killing_with_host_app():
         start_app('zero-instance-app', 3)
         watch_all_deployments()
         existing_tasks = _list_tasks(3, 'zero-instance-app')
-        task_hosts = set([task['host'] for task in existing_tasks])
+        task_hosts = {task['host'] for task in existing_tasks}
         if len(task_hosts) <= 1:
-            pytest.skip('test needs 2 or more agents to succeed, '
-                        'only {} agents available'.format(len(task_hosts)))
+            pytest.skip(
+                f'test needs 2 or more agents to succeed, only {len(task_hosts)} agents available'
+            )
+
         assert len(task_hosts) > 1
         kill_host = list(task_hosts)[0]
-        expected_to_be_killed = set([task['id']
-                                     for task in existing_tasks
-                                     if task['host'] == kill_host])
-        not_to_be_killed = set([task['id']
-                                for task in existing_tasks
-                                if task['host'] != kill_host])
-        assert len(not_to_be_killed) > 0
-        assert len(expected_to_be_killed) > 0
+        expected_to_be_killed = {
+            task['id'] for task in existing_tasks if task['host'] == kill_host
+        }
+
+        not_to_be_killed = {
+            task['id'] for task in existing_tasks if task['host'] != kill_host
+        }
+
+        assert not_to_be_killed
+        assert expected_to_be_killed
         command = ['dcos', 'marathon', 'app', 'kill', '--host', kill_host,
                    'zero-instance-app']
         returncode, stdout, stderr = exec_command(command)
         assert stdout.decode().startswith('Killed tasks: ')
         assert stderr == b''
-        new_tasks = set([task['id'] for task in _list_tasks()])
+        new_tasks = {task['id'] for task in _list_tasks()}
         assert not_to_be_killed.intersection(new_tasks) == not_to_be_killed
-        assert len(expected_to_be_killed.intersection(new_tasks)) == 0
+        assert not expected_to_be_killed.intersection(new_tasks)
 
 
 def test_kill_stopped_app():
@@ -767,7 +771,7 @@ def _update_app(app_id, file_path):
 def _list_versions(app_id, expected_min_count, max_count=None):
     cmd = ['dcos', 'marathon', 'app', 'version', 'list', app_id]
     if max_count is not None:
-        cmd.append('--max-count={}'.format(max_count))
+        cmd.append(f'--max-count={max_count}')
 
     returncode, stdout, stderr = exec_command(cmd)
 
@@ -848,6 +852,7 @@ def _zero_instance_app():
 
 @contextlib.contextmanager
 def _zero_instance_app_through_http():
+
     class JSONRequestHandler (BaseHTTPRequestHandler):
 
         def do_GET(self):  # noqa: N802
@@ -865,7 +870,7 @@ def _zero_instance_app_through_http():
     thread.setDaemon(True)
     thread.start()
 
-    with app('http://{}:{}'.format(host, port), 'zero-instance-app'):
+    with app(f'http://{host}:{port}', 'zero-instance-app'):
         try:
             yield
         finally:

@@ -12,7 +12,7 @@ from dcos import auth, cluster, config, constants, errors, util
 
 def _cluster(cluster_id):
     c = cluster.Cluster(cluster_id)
-    c.get_name = MagicMock(return_value="cluster-{}".format(cluster_id))
+    c.get_name = MagicMock(return_value=f"cluster-{cluster_id}")
     return c
 
 

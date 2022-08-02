@@ -41,15 +41,19 @@ def _get_versions():
             dcos_info = res.json()
     except Exception as e:
         logger.exception(e)
-        pass
-
     emitter.publish(
-        "dcoscli.version={}\n".format(dcoscli.version) +
-        "dcos.version={}\n".format(dcos_info.get("version", "N/A")) +
-        "dcos.commit={}\n".format(dcos_info.get(
-            "dcos-image-commit", "N/A")) +
-        "dcos.bootstrap-id={}".format(dcos_info.get("bootstrap-id", "N/A"))
+        (
+            (
+                f"dcoscli.version={dcoscli.version}\n"
+                + f'dcos.version={dcos_info.get("version", "N/A")}\n'
+            )
+            + "dcos.commit={}\n".format(
+                dcos_info.get("dcos-image-commit", "N/A")
+            )
+            + f'dcos.bootstrap-id={dcos_info.get("bootstrap-id", "N/A")}'
+        )
     )
+
     return 0
 
 
